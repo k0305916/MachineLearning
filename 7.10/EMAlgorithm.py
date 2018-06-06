@@ -13,11 +13,14 @@ def EOperation(score, seta1, seta2, seta3):
         seta2_T = (1-segema) * score
         seta3_H = gama * score
         seta3_T = (1-gama) * score
+        return seta1_H, seta1_T, seta2_H, seta2_T, seta3_H, seta3_T
 
 
-
-def MOperation(dataset, seta1, seta2, seta3):
-        pass
+def MOperation(dataset, seta1_H, seta1_T, seta2_H, seta2_T, seta3_H, seta3_T):
+        seta1 = seta1_H / (seta1_H+seta1_T)
+        seta2 = seta2_H / (seta2_H+seta2_T)
+        seta3 = seta3_H / (seta3_H+seta3_T)
+        return seta1, seta2, seta3
 
 
 dataset = pd.read_csv('data/DataSet.csv')
@@ -43,19 +46,35 @@ for i in range(colcount-1):
         #实用映射的方式来转换
         dataset[dataset.columns.values[i]
                 ] = dataset[dataset.columns.values[i]].map(score)
-print(dataset)
+# print(dataset)
 
 last_seta1 = 0.0
 last_seta2 = 0.0
 last_seta3 = 0.0
-seta1 = 0.0
-seta2 = 0.0
-seta3 = 0.0
-frist = True
-while fabs(last_seta1-seta1) < 0.1 and fabs(last_seta2-seta2) < 0.1 and fabs(last_seta3-seta3) < 0.1:
-        if not frist:
-                seta1, seta2, seta3 = EOperation(dataset, seta1, seta2, seta3)
-        MOperation(dataset, seta1, seta2, seta3)
-        frist = False
+seta1 = 0.5
+seta2 = 0.8
+seta3 = 0.1
+totalseta1_H = 0.0
+totalseta1_T = 0.0
+totalseta2_H = 0.0
+totalseta2_T = 0.0
+totalseta3_T = 0.0
+totalseta3_H = 0.0
+while math.fabs(last_seta1-seta1) >= 0.01 or math.fabs(last_seta2-seta2) >= 0.01 or math.fabs(last_seta3-seta3) >= 0.01:
+        for i in range(len(dataset)):
+                totalsocre = dataset.loc[i].sum()
+                seta1_H, seta1_T, seta2_H, seta2_T, seta3_H, seta3_T = EOperation(
+                    totalsocre, seta1, seta2, seta3)
+                totalseta1_H+=seta1_H
+                totalseta1_T+=seta1_T
+                totalseta2_H+=seta2_H
+                totalseta2_T+=seta2_T
+                totalseta3_H+=seta3_H
+                totalseta3_T+=seta3_T
+        last_seta1 = seta1
+        last_seta2 = seta2
+        last_seta3 = seta3
+        seta1, seta2, seta3 = MOperation(
+            dataset, seta1_H, seta1_T, seta2_H, seta2_T, seta3_H, seta3_T)
 print('account over.')
 print(seta1, seta2, seta3)
