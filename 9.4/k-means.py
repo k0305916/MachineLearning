@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np  # 主要操作对象使矩阵
 import random
 import math
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 
 
 class myobject:
@@ -22,11 +22,11 @@ class myobject:
     def push(self, density, sugarrate):
         self.__values.append((density, sugarrate))
         m = np.array(self.__values)
-        self.__density = np.mean(m[:,0])
-        self.__sugarrate = np.mean(m[:,1])
+        self.__density = np.mean(m[:, 0])
+        self.__sugarrate = np.mean(m[:, 1])
 
     def dis(self, x, y):
-        return math.sqrt(math.pow(x-self.__density,2) + math.pow(y - self.__sugarrate,2))
+        return math.sqrt(math.pow(x-self.__density, 2) + math.pow(y - self.__sugarrate, 2))
 
     def __str__(self):  # 定义打印对象时打印的字符串---当对象直接调用的时候调用的使这个
         return " ".join(str(item) for item in (
@@ -36,22 +36,25 @@ class myobject:
         return " ".join(str(item) for item in (
             self.__density, self.__sugarrate))
 
-    def originalcenter(self):
-        print(" ".join(str(item) for item in (
-            self.__originaldensity, self.__originalsugarrate)))
-    
-    def getcol(self,i):
+    def getoriginalcenter(self):
+        return self.__originaldensity, self.__originalsugarrate
+
+    def getcenter(self):
         m = np.array(self.__values)
-        return m[:,i]
+        return np.mean(m[:, 0]),np.mean(m[:, 1])
+
+    def getcol(self, i):
+        m = np.array(self.__values)
+        return m[:, i]
 
 
 def kmeans(dataset, centers):
     for i in range(len(dataset)):
         # this is the right way to foreach each item of list.
         dislist = [x.dis(dataset.ix[i, [1]], dataset.ix[i, [2]])
-                    for x in centers]
+                   for x in centers]
         matchcenter = dislist.index(min(dislist))
-        centers[matchcenter].push(dataset.ix[i,[1]],dataset.ix[i,[2]])
+        centers[matchcenter].push(dataset.ix[i, [1]], dataset.ix[i, [2]])
 
 
 dataset = pd.read_csv('data/melondataset9.csv').iloc[:, 0:3]
@@ -62,13 +65,28 @@ for i in range(0, 3):
     kmeans(dataset, centers)
 
     # draw scatter diagram to show the raw data
-    plt.figure(i)       
-    plt.title('k-means')  
-    plt.xlabel('density')  
-    plt.ylabel('sugar_rate')  
-    plt.scatter(centers[0].getcol(0), centers[0].getcol(1), marker = 'o', color = 'k', s=100, label = '1')
-    plt.scatter(centers[1].getcol(0), centers[1].getcol(1), marker = 'o', color = 'g', s=100, label = '2')
-    plt.scatter(centers[2].getcol(0), centers[2].getcol(1), marker = 'o', color = 'r', s=100, label = '3')
-    plt.legend(loc = 'upper right')  
+    plt.figure(i)
+    plt.title('k-means')
+    plt.xlabel('density')
+    plt.ylabel('sugar_rate')
+    plt.scatter(centers[0].getcol(0), centers[0].getcol(1),
+                marker='o', color='k', s=100, label='1')
+    x, y = centers[0].getcenter()
+    plt.plot(x, y, 'k+')
+    x, y = centers[0].getoriginalcenter()
+    plt.plot(x, y, 'kx')
+    plt.scatter(centers[1].getcol(0), centers[1].getcol(1),
+                marker='o', color='g', s=100, label='2')
+    x, y = centers[1].getcenter()
+    plt.plot(x, y, 'g+')
+    x, y = centers[1].getoriginalcenter()
+    plt.plot(x, y, 'gx')
+    plt.scatter(centers[2].getcol(0), centers[2].getcol(1),
+                marker='o', color='r', s=100, label='3')
+    x, y = centers[2].getcenter()
+    plt.plot(x, y, 'r+')
+    x, y = centers[2].getoriginalcenter()
+    plt.plot(x, y, 'rx')
+    # plt.legend(loc='upper right')
     plt.show()
     # print(centers)
