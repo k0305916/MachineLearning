@@ -49,13 +49,9 @@ class Perception(object):
 
         for _ in range(self.n_iter):
             errors = 0
-<<<<<<< HEAD
             # 1. This is 1D weight array.
             # 2. 'update' always will update weight.
             for xi, target in zip(x,y):
-=======
-            for xi, target in zip(x, y):
->>>>>>> 14dca7d556e27d20641921d2cf7e1809f6b70835
                 update = self.eta * (target - self.predict(xi))
                 self.w_[1:] += update * xi
                 self.w_[0] += update
@@ -65,12 +61,8 @@ class Perception(object):
 
     def net_input(self, x):
         '''Calculate net input'''
-<<<<<<< HEAD
         print(np.dot(x,self.w_[1:]) + self.w_[0])
         return np.dot(x,self.w_[1:]) + self.w_[0]
-=======
-        return np.dot(x, self.w_[1:]) + self.w_[0]
->>>>>>> 14dca7d556e27d20641921d2cf7e1809f6b70835
 
     def predict(self, x):
         '''Return class label atfer unit step'''
@@ -97,7 +89,6 @@ def Plot_decision_regions(x, y, classifier, resolution=0.02):
                     c=cmap(idx), marker=markers[idx], label=cl)
 
 
-<<<<<<< HEAD
 class AdalineGD(object):
     '''
     ADAptive Linear Neuron classifier.
@@ -166,10 +157,6 @@ class AdalineGD(object):
 
 
 df = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data',header=None)
-=======
-df = pd.read_csv(
-    'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data', header=None)
->>>>>>> 14dca7d556e27d20641921d2cf7e1809f6b70835
 df.tail()
 
 y = df.iloc[0:100, 4].values
@@ -195,8 +182,6 @@ plt.show()
 # plt.ylabel('petal length [cm]')
 # plt.legend(loc='upper left')
 # plt.show()
-
-<<<<<<< HEAD
 
 
 # fig,ax = plt.subplots(nrows = 1,ncols = 2,figsize=(8,4))
@@ -228,10 +213,3 @@ plt.show()
 # plt.xlabel('Epochs')
 # plt.ylabel('Sum-squared-error')
 # plt.show()
-=======
-Plot_decision_regions(x, y, classifier=ppn)
-plt.xlabel('sepal length [cm]')
-plt.ylabel('petal length [cm]')
-plt.legend(loc='upper left')
-plt.show()
->>>>>>> 14dca7d556e27d20641921d2cf7e1809f6b70835
