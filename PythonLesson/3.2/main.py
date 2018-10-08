@@ -54,17 +54,17 @@ def plot_decision_regions(x, y, classifier, test_idex=None, resultion=0.02):
     plt.xlim(xx2.min(), xx2.max())
 
     #plot all samples
-    # x_test, y_test = x[test_idex, :], y[test_idex]
-    # for idx, cl in enumerate(np.unique(y)):
-    #     plt.scatter(x=x[y == cl, 0], y=x[y == cl, 1],
-    #                 alpha=0.8, c=cmap(idx),
-    #                 marker=markers[idx], label=cl)
+    x_test, y_test = x[test_idex, :], y[test_idex]
+    for idx, cl in enumerate(np.unique(y)):
+        plt.scatter(x=x[y == cl, 0], y=x[y == cl, 1],
+                    alpha=0.8, c=cmap(idx),
+                    marker=markers[idx], label=cl)
 
     #highlight test samples
     if test_idex:
         x_test, y_test = x[test_idex, :], y[test_idex]
-        plt.scatter(x_test[:, 0], x_test[:, 1], c='',
-                    alpha=0.8, linewidth=1, marker='o',
+        plt.scatter(x_test[:, 0], x_test[:, 1], c='y',
+                    alpha=1, linewidth=1, marker='o',
                     s=55, label='test set')
 
 
