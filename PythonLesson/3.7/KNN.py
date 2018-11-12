@@ -1,13 +1,12 @@
+#以欧几里得距离为度量标准，使用scikit-learn实现了一个KNN模型。
+
 from sklearn import datasets
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from matplotlib.colors import ListedColormap
 import numpy as np
 import matplotlib.pyplot as plt
-
-#export plt to png through graphviz
-from sklearn.tree import export_graphviz
-
 
 def plot_decision_regions(x, y, classifier, test_idx=None, resultion=0.02):
     #setup marker generator and color map
@@ -51,14 +50,20 @@ y = iris.target
 x_train, x_test, y_train, y_test = train_test_split(
     x, y, test_size=0.3, random_state=0)
 
-tree = DecisionTreeClassifier(criterion='entropy',max_depth=3,random_state=0)
-tree.fit(x_train,y_train)
-x_combined = np.vstack((x_train,x_test))
-y_combined = np.hstack((y_train,y_test))
-plot_decision_regions(x_combined,y_combined,classifier=tree,test_idx=range(105,150))
-plt.xlabel('petal length [cm]')
-plt.ylabel('petal width [cm')
-plt.legend(loc='upper left')
-plt.show()
+#standard data: std;
+sc = StandardScaler()
+#sc.fit can account 平均值 and 方差.
+sc.fit(x_train)
+x_train_std = sc.transform(x_train)
+x_test_std = sc.transform(x_test)
 
-export_graphviz(tree,out_file='tree.dot',feature_names=['petal length','petal width'])
+
+knn = KNeighborsClassifier(n_neighbors=5,p=2,metric='minkowski')
+knn.fit(x_train_std,y_train)
+x_combined_std = np.vstack((x_train_std, x_test_std))
+y_combined = np.hstack((y_train, y_test))
+
+plot_decision_regions(x_combined_std,y_combined,classifier=knn,test_idx=range(105,150))
+plt.xlabel('petal length [standardized]')
+plt.ylabel('petal width [standardized]')
+plt.show()

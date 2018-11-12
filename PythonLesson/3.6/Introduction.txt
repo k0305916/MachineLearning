@@ -1,0 +1,8 @@
+KeyWord：
+最大化信息增益
+
+
+scikit-learn一个吸引人的功能就是，它允许将训练后得到的决策树导出为.dot格式的文件，
+这使得我们可以使用GraphViz程序进行可视化处理。
+
+GraphViz支持Linux、Windows和Mac OS X系统，可在http://www.graphviz.org免费下载。
