@@ -1,0 +1,64 @@
+keywords:
+
+在本章中，我们将使用由Maas等人[1]收集的互联网电影数据库（Internet Movie Database，IMDb）
+中的大量电影评论数据。此数据集包含50000个关于电影的正面或负面的评论，
+正面的意思是影片在IMDb数据库中的评分高于6星，而负面的意思是影片的评分低于5星。
+在本章后续内容中，我们将学习如何从这些电影评论的子集中抽取有意义的信息，
+以此来构建模型并用于预测评论者对影片的喜好。
+
+
+为了实现对处理过程的可视化，同时能够预测剩余处理时间，
+这里会用到PyPrind包（Python Progress Indicator,https://pypi.python.org/pypi/PyPrind/）。
+读者可以执行pip install pyprind命令安装PyPrind。
+
+
+词袋模型的理念很简单，可描述如下：
+1）我们在整个文档集上为每个词汇创建了唯一的标记，例如单词。
+2）我们为每个文档构建一个特征向量，其中包含每个单词在此文档中出现的次数。
+
+
+词频-逆文档频率（term frequency-inverse document frequency,tf-idf）:
+它可以用于解决特征向量中单词频繁出现的问题。
+tf-idf可以定义为词频与逆文档频率的乘积：tf-idf（t,d）＝tf（t,d）×idf（t,d）
+
+idf_expression.png:
+这里的nd为文档的总数，df（d,t）为包含词汇t的文档d的数量。
+请注意，分母中加入常数1是可选的，对于没有出现在任何训练样本中的词汇，它能保证分母不为零；
+取对数是为了保证文档中出现频率较低的词汇不会被赋予过大的权重。
+
+
+
+Porter stamming算法可能是最原始也是最简单的词干提取算法了。
+其他流行的词干提取算法包括Snowball stemmer（Porter2，也称为"English"stemmer）
+以及Lancaster stemmer（Paice-Husk stemmer），与Porter stemming算法相比，
+它们提取速度更高不过提取时也更加野蛮。这些算法也在nltk包中得以实现（http://www.nltk.org/api/nltk.stem.html）
+
+不过，相较于词干提取，词形还原的计算更加复杂和昂贵
+
+通过实际应用中的观察发现，在文本分类中，这两种技术(词干提取，词形还原)对分类结果的影响不大
+
+停用词是指在各种文本中太过常见，以致没有（或很少）含有用于区分文本所属类别的有用信息。常见的停用词有is、and、has等。
+由于tf-idf可以降低频繁出现单词的权重，因此当我们使用原始或归一化的词频而不是tf-idf时，移除停用词是很有用的。
+我们可通过调用nltk.download函数得到NLTK库提供的停用词，并使用其中的127个停用词对电影评论数据进行停用词移除处理：
+
+
+
+朴素贝叶斯分类器（Na飗e Bayes classifier）是迄今为止执行文本分类十分流行的一种分类器，
+特别是用于垃圾邮件过滤。朴素贝叶斯分类器易于实现，计算性能高效，
+相对于其他算法，它在小数据集上的表现异常出色。虽然本书并未讨论朴素贝叶斯分类器，
+有兴趣的读者可以阅读我在arXiv上关于朴素贝叶斯分类的论文
+（S.Raschka.Naive Bayes and Text Classification I-introduction and Theory.Computing 
+Research Repository（CoRR）,abs/1410.5329,2014.http://arxiv.org/pdf/1410.5329v3.pdf）。
+
+
+
+虽然词袋模型仍旧是文本分类领域最为流行的模型，但是它没有考虑句子的结构和语法。
+一种流行的词袋模型扩展就是潜狄利克雷分配（Latent Dirichlet Allocation），
+这是一种考虑句子潜在语义的主题模型（D.M.Blei,A.Y.Ng,andM.I.Jordan.Latent Dirichlet allocation.
+The Journal of machine Learning research,3:993-1022,2003）。
+word2vec是最近提出的一种词袋模型的替代算法，它由谷歌公司在2013年提出（T.Mikolov,K.Chen,G.Corrado,and 
+J.Dean.Efficient Estimation of Word Represen-tations in Vector Space.arXiv preprint arXiv:1301.3781,2013）。
+word2vec算法是基于神经网络的一种无监督算法，它会自动尝试学习单词之间的关系。
+word2vec背后的理念就是将词义相近的单词划分到相同的簇中；通过巧妙的向量间隔，
+此模型可以通过简单的向量计算来得到合适的单词，例如：king–man+woman=queen。
+读者可以通过链接https://code.google.com/p/word2vec/找到word2vec模型原始的C语言实现、相关的论文及其替代实现代码
