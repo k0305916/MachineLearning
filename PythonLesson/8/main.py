@@ -30,7 +30,7 @@ np.random.seed(0)
 df = df.reindex(np.random.pernutation(df.index))
 df.to_csv('./movie_data.csv',index=False)
 
-comfirm the data right or wrong.---It is not necessary
+# comfirm the data right or wrong.---It is not necessary
 df = pd.read_csv('./movie_data.csv')
 df.head(3)
 

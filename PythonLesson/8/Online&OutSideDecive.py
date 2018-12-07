@@ -44,6 +44,7 @@ clf = SGDClassifier(loss='log',random_state=1,n_iter=1)
 doc_stream = stream_docs(path='./movie_data.csv')
 
 
+# 现在到了真正有趣的部分。设置好所有的辅助函数后，我们可以通过下述代码使用外存学习：
 import pyprind
 pbar = pyprind.ProgBar(45)
 classes = np.array([0,1])
