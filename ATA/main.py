@@ -11,7 +11,6 @@ def fit_ata(
                     q                    
                 ):
         """
-
         :param input_endog: numpy array of intermittent demand time series
         :param forecast_length: forecast horizon
         :return: dictionary of model parameters, in-sample forecast, and out-of-sample forecast
@@ -99,18 +98,17 @@ def _ata(
     q = w[1]
     # fit model
     for i in range(1,k):
-        a_demand1 = p / nzd[i]
-        a_demand2 = (nzd[i] - p) / nzd[i]
-        a_interval1 = q / nzd[i]
-        a_internval2 = (nzd[i] - q) / nzd[i]
+        a_demand = p / nzd[i]
+        a_interval = q / nzd[i]
 
+        # 这个地方其实有些不懂, 为什么要这样操作？
         if nzd[i] <= p:
             z[i] = x[i]
         if nzd[i] <= q:
             x[i] = z[i] - z[i-1]
 
-        zfit[i] = a_demand1 * z[i] + a_demand2 * zfit[i-1] # demand
-        xfit[i] = a_interval1 * x[i] + a_internval2 * xfit[i-1] # interval
+        zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
+        xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval
         
     cc = correction_factor * zfit / (xfit + epsilon)
     
@@ -133,6 +131,8 @@ def _ata(
 
     # forecast out_of_sample demand rate
     
+    # ata 中的weight符合超几何分布，因此并不会出现越到后面，weight下降越快。
+    # 因此， ata的最后一个值，并不会100%等于最后一个fitted value。
     if h > 0:
         frc_out = np.array([cc[k-1]] * h)
     else:
@@ -146,47 +146,11 @@ def _ata(
     
     return return_dictionary
 
-def _ata_opt(
-                    input_series, 
-                    input_series_length, 
-                    epsilon,
-                    w = None,
-                    nop = 1
-                ):
-    
-    # p0 = np.array([1,1] * nop)
-            
-    # wopt = minimize(
-    #                     fun = _ata_cost, 
-    #                     x0 = p0, 
-    #                     method='Nelder-Mead',
-    #                     args=(input_series, input_series_length, epsilon)
-    #                 )
-    # 由于ATA中weight的获取是与t相关的。。因此，就不能动态的获取了。
-    wopt
-    
-    constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))
-    
-    return constrained_wopt
-    
-
+# 仅仅通过rmse来判断，容易产生过拟合的问题，因此需要添加新的正则化来减轻过拟合~
 def _ata_cost(
-                    p0,
-                    input_series,
-                    input_series_length,
-                    epsilon
+                input_series,
+                frc_in
                 ):
-    
-    # cost function for ata and variants
-    
-    frc_in = _ata(
-                    input_series = input_series,
-                    input_series_length = input_series_length,
-                    w=p0,
-                    h=0,
-                    epsilon = epsilon
-                    )['in_sample_forecast']
-        
     E = input_series - frc_in
     E = E[E != np.array(None)]
     E = np.mean(E ** 2)
@@ -199,9 +163,26 @@ idxs = [1,2-1,6-2,7-3]
 
 ts = np.insert(a, idxs, val)
 
-fit_pred = fit_ata(ts, 4) # ata's method
+min_rmse = 99999999
+min_p = 0
+min_q = 0
 
+# 如何最优化p,q的过程~  重点~
+for p in range(1,7):
+    for q in range(1,p+1):
+        fit_pred = fit_ata(ts, 4, p, q) # ata's method
 
+        frc_in = fit_pred['ata_fittedvalues']
+
+        rmse = _ata_cost(ts, frc_in)
+
+        if(rmse < min_rmse):
+            min_rmse = rmse
+            min_p = p
+            min_q = q
+        print(("rms: {0} p: {1} q: {2}").format(rmse,p,q))
+
+fit_pred = fit_ata(ts, 4, min_p, min_q) # ata's method
 yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
 
 print(ts)
