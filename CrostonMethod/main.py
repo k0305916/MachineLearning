@@ -144,9 +144,10 @@ def _croston(
 
     # forecast out_of_sample demand rate
     
+    # croston 中的weight符合指数分布，因此并越到后面，weight下降越快。
+    # 因此， croston的最后一个值，基本上是等于最后一个fitted value。
     if h > 0:
         frc_out = np.array([cc[k-1]] * h)
-        
     else:
         frc_out = None
     
@@ -203,6 +204,8 @@ def _croston_cost(
     E = input_series - frc_in
     E = E[E != np.array(None)]
     E = np.mean(E ** 2)
+
+    print(E)
 
     return E
 
