@@ -169,7 +169,9 @@ def _croston_opt(
                 ):
     
     p0 = np.array([0.1] * nop)
-            
+
+    # 通过minimize的方式，获取到一个最优化值。
+    # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
     wopt = minimize(
                         fun = _croston_cost, 
                         x0 = p0, 
@@ -205,15 +207,22 @@ def _croston_cost(
     E = E[E != np.array(None)]
     E = np.mean(E ** 2)
 
-    print(E)
+    if len(p0) < 2:
+        print(('demand : {0}  a_interval: {1} rmse: {2}').format(p0[0], p0[0], E))
+    else:
+        print(('demand : {0}  a_interval: {1} rmse: {2}').format(p0[0], p0[1], E))
 
     return E
 
-a = np.zeros(7)
-val = [1.0,4.0,5.0,3.0]
-idxs = [1,2-1,6-2,7-3]
+# a = np.zeros(7)
+# val = [1.0,4.0,5.0,3.0]
+# idxs = [1,2-1,6-2,7-3]
+# ts = np.insert(a, idxs, val)
 
-ts = np.insert(a, idxs, val)
+
+input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+input_data = input_data.fillna(0)
+ts = input_data['Feature']
 
 fit_pred = fit_croston(ts, 4, 'original') # croston's method
 
