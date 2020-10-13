@@ -3,14 +3,12 @@ import pandas as pd
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 
-# p, q 看一下是否可以通过动态获取。
 def fit_ata(
                     input_endog,
                     forecast_length,
-                    p,
-                    q                    
                 ):
         """
+
         :param input_endog: numpy array of intermittent demand time series
         :param forecast_length: forecast horizon
         :return: dictionary of model parameters, in-sample forecast, and out-of-sample forecast
@@ -24,18 +22,18 @@ def fit_ata(
         if list(nzd) != [0]:
                 
                 try:
-                    # w_opt = _ata_opt(
-                    #                         input_series = input_series,
-                    #                         input_series_length = input_length,
-                    #                         epsilon = epsilon,                                            
-                    #                         w = None,
-                    #                         nop = 1
-                    #                     )
+                    w_opt = _ata_opt(
+                                            input_series = input_series,
+                                            input_series_length = input_length,
+                                            epsilon = epsilon,                                            
+                                            w = None,
+                                            nop = 2
+                                        )
                     
                     ata_training_result = _ata(
                                                             input_series = input_series, 
                                                             input_series_length = input_length,
-                                                            w = [p,q], 
+                                                            w = w_opt, 
                                                             h = forecast_length,
                                                             epsilon = epsilon,
                                                       )
@@ -65,12 +63,12 @@ def fit_ata(
                 }
 
 def _ata(
-            input_series, 
-            input_series_length,
-            w, 
-            h,                  
-            epsilon
-            ):
+                 input_series, 
+                 input_series_length,
+                 w, 
+                 h,                  
+                 epsilon
+             ):
     
     # ata decomposition
     nzd = np.where(input_series != 0)[0] # find location of non-zero demand
@@ -91,7 +89,7 @@ def _ata(
     
     zfit[0] = init[0]
     xfit[0] = init[1]
-
+    
     correction_factor = 1
     
     p = w[0]
@@ -112,7 +110,6 @@ def _ata(
             xfit[i] = z[i] - z[i-1]
         else:
             xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval
-            
         
     cc = correction_factor * zfit / (xfit + epsilon)
     
@@ -135,9 +132,8 @@ def _ata(
 
     # forecast out_of_sample demand rate
     
-    # ata 中的weight符合超几何分布，因此并不会出现越到后面，weight下降越快。
-    # 因此， ata的最后一个值，并不会100%等于最后一个fitted value。
-    # 从forecast的公式可知，其中并没有 h 可迭代参数，因此，forecast的结果都是最后一个。
+    # ata 中的weight符合指数分布，因此并越到后面，weight下降越快。
+    # 因此， ata的最后一个值，基本上是等于最后一个fitted value。
     if h > 0:
         frc_out = np.array([cc[k-1]] * h)
     else:
@@ -151,54 +147,77 @@ def _ata(
     
     return return_dictionary
 
-# 仅仅通过rmse来判断，容易产生过拟合的问题，因此需要添加新的正则化来减轻过拟合~
-def _ata_cost(
-                input_series,
-                frc_in
+def _ata_opt(
+                    input_series, 
+                    input_series_length, 
+                    epsilon,
+                    w = None,
+                    nop = 2
                 ):
+    
+    p0 = np.array([1] * nop)
+
+    # 通过minimize的方式，获取到一个最优化值。
+    # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
+    wopt = minimize(
+                        fun = _ata_cost, 
+                        x0 = p0, 
+                        method='Nelder-Mead',
+                        args=(input_series, input_series_length, epsilon)
+                    )
+    
+    constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))   
+    
+    return constrained_wopt
+    
+
+def _ata_cost(
+                p0,
+                input_series,
+                input_series_length,
+                epsilon
+            ):
+    
+    # cost function for ata and variants
+    
+    frc_in = _ata(
+                input_series = input_series,
+                input_series_length = input_series_length,
+                w=p0,
+                h=0,
+                epsilon = epsilon
+            )['in_sample_forecast']
+        
     E = input_series - frc_in
     E = E[E != np.array(None)]
     E = np.mean(E ** 2)
 
+    if len(p0) < 2:
+        print(('demand : {0}  a_interval: {1} rmse: {2}').format(p0[0], p0[0], E))
+    else:
+        print(('demand : {0}  a_interval: {1} rmse: {2}').format(p0[0], p0[1], E))
+
     return E
 
-# simple test
-# -----------------------------------------------
 # a = np.zeros(7)
 # val = [1.0,4.0,5.0,3.0]
 # idxs = [1,2-1,6-2,7-3]
-
 # ts = np.insert(a, idxs, val)
 
-# min_rmse = 99999999
-# min_p = 0
-# min_q = 0
 
-# # 如何最优化p,q的过程~  重点~
-# for p in range(1,7):
-#     for q in range(0,p+1):
-#         fit_pred = fit_ata(ts, 4, p, q) # ata's method
+input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+input_data = input_data.fillna(0)
+ts = input_data['Feature']
 
-#         frc_in = fit_pred['ata_fittedvalues']
+fit_pred = fit_ata(ts, 4) # ata's method
 
-#         rmse = _ata_cost(ts, frc_in)
 
-#         if(rmse < min_rmse):
-#             min_rmse = rmse
-#             min_p = p
-#             min_q = q
-#         print(("rms: {0} p: {1} q: {2}").format(rmse,p,q))
+yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
 
-# print(("min_p: {0}  min_q: {1}").format(min_p,min_q))
+print(ts)
+print(yhat)
 
-# fit_pred = fit_ata(ts, 4, min_p, min_q) # ata's method
-# yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+plt.plot(ts)
+plt.plot(yhat)
 
-# print(ts)
-# print(yhat)
-
-# plt.plot(ts)
-# plt.plot(yhat)
-
-# plt.show()
-# -----------------------------------------------
+plt.show()
