@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+# from scipy.optimize import minimize
+from bayes_opt import BayesianOptimization
 import matplotlib.pyplot as plt
 
 def fit_ata(
@@ -14,8 +15,12 @@ def fit_ata(
         :return: dictionary of model parameters, in-sample forecast, and out-of-sample forecast
         """
         
+        global input_series1
         input_series = np.asarray(input_endog)
+        input_series1 = input_series
+        global epsilon1
         epsilon = 1e-7
+        epsilon1 = epsilon
         input_length = len(input_series)
         nzd = np.where(input_series != 0)[0]
         
@@ -154,19 +159,22 @@ def _ata_opt(
                     w = None,
                     nop = 2
                 ):
-    
-    p0 = np.array([1] * nop)
 
-    # 通过minimize的方式，获取到一个最优化值。
-    # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
-    wopt = minimize(
-                        fun = _ata_cost, 
-                        x0 = p0, 
-                        method='Nelder-Mead',
-                        args=(input_series, input_series_length, epsilon)
-                    )
-    
-    constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))   
+# Bounded region of parameter space
+    pbounds = {'p': (1, input_series_length), 'q': (0, input_series_length)}
+
+    optimizer = BayesianOptimization(
+        f=calc_opt,
+        pbounds=pbounds,
+        verbose=2,
+        random_state=1,
+    )
+
+    optimizer.maximize()
+
+    wopt = optimizer.max
+
+    constrained_wopt = [wopt['params']['p'], wopt['params']['q']]
     
     return constrained_wopt
     
@@ -199,6 +207,11 @@ def _ata_cost(
 
     return E
 
+def calc_opt(p,q):
+    E = _ata_cost([p,q],input_series1, len(input_series1),epsilon1)
+    return -E
+
+
 # a = np.zeros(7)
 # val = [1.0,4.0,5.0,3.0]
 # idxs = [1,2-1,6-2,7-3]
@@ -221,3 +234,5 @@ plt.plot(ts)
 plt.plot(yhat)
 
 plt.show()
+
+# demand : 11372.36833477203  a_interval: 2099.0495890911106 rmse: 5868603.9318896765
