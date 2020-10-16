@@ -119,8 +119,8 @@ def _ata(
     cc = correction_factor * zfit / (xfit + epsilon)
     
     ata_model = {
-                        'a_demand':             a_demand,
-                        'a_interval':           a_interval,
+                        'a_demand':             p,
+                        'a_interval':           q,
                         'demand_series':        pd.Series(zfit),
                         'interval_series':      pd.Series(xfit),
                         'demand_process':       pd.Series(cc),
@@ -236,3 +236,28 @@ plt.plot(yhat)
 plt.show()
 
 # demand : 11372.36833477203  a_interval: 2099.0495890911106 rmse: 5868603.9318896765
+
+# Test
+W = [fit_pred['ata_model']['a_demand'], fit_pred['ata_model']['a_interval']]
+test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest1.csv")
+test_data = test_data.fillna(0)
+ts_test = test_data['Feature']
+
+test_out = _ata(ts_test, len(ts_test),W,0, 1e-7)
+test_out = test_out['in_sample_forecast']
+
+E = test_out - ts_test
+E = E[E != np.array(None)]
+E = np.mean(E ** 2)
+print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[1], E))
+
+# print(ts_test)
+# print(test_out)
+
+plt.plot(ts_test)
+plt.plot(test_out)
+
+plt.show()
+
+# out: a_demand : 11372.36833477203  a_interval: 2099.0495890911106 rmse: 1.8484276491153072e+19
+# standard out: a_demand : 22457.631597389674  a_interval: 0.0 rmse: 138.65686705572062

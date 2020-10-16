@@ -241,3 +241,28 @@ plt.plot(yhat)
 plt.show()
 
 # demand : 0.34963623046875086  a_interval: 0.34963623046875086 rmse: 6612837.1950832065
+
+
+# Test
+W = [fit_pred['croston_model']['a_demand'], fit_pred['croston_model']['a_interval']]
+test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
+test_data = test_data.fillna(0)
+ts_test = test_data['Feature']
+
+test_out = _croston(ts_test, len(ts_test),'original',W,0, 1e-7)
+test_out = test_out['in_sample_forecast']
+
+E = test_out - ts_test
+E = E[E != np.array(None)]
+E = np.mean(E ** 2)
+print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[0], E))
+
+# print(ts_test)
+# print(test_out)
+
+plt.plot(ts_test)
+plt.plot(test_out)
+
+plt.show()
+
+# out: a_demand : 0.34963867187500086  a_interval: 0.34963867187500086 rmse: 13011388.362962488
