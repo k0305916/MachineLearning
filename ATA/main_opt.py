@@ -239,7 +239,7 @@ plt.show()
 
 # Test
 W = [fit_pred['ata_model']['a_demand'], fit_pred['ata_model']['a_interval']]
-test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest1.csv")
+test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
 test_data = test_data.fillna(0)
 ts_test = test_data['Feature']
 

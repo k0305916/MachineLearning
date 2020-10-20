@@ -197,27 +197,87 @@ def _ata_cost(
     # count = count + 1
     return E
 
+def ata_forecast(w, init, h, epsilon):
+    z = np.array([None] * h)
+    zfit = np.array([None] * h)
+    xfit = np.array([None] * h)
+
+    # assign initial values and prameters
+    
+    z[0] = init
+    zfit[0] = z[0]
+    xfit[0] = 1
+
+    p = w[0]
+    q = w[1]
+    # fit model
+    for i in range(1,h):
+        a_demand = p / i
+        a_interval = q / i
+
+        if i <= p:
+            z[i] = z[i-1]
+            zfit[i] = z[i]
+        else:
+            zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
+
+
+        if i <= q:
+            xfit[i] = z[i] - z[i-1]
+        else:
+            xfit[i] = xfit[i-1] + a_interval * (i - xfit[i-1]) # interval
+            
+        
+    cc =  zfit / (xfit + epsilon)
+
+    return cc
+
 # a = np.zeros(7)
 # val = [1.0,4.0,5.0,3.0]
 # idxs = [1,2-1,6-2,7-3]
 # ts = np.insert(a, idxs, val)
 
 
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
 
-fit_pred = fit_ata(ts, 4)
+# fit_pred = fit_ata(ts, 4)
 
 
-yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+# yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
 
 # print(ts)
 # print(yhat)
 
-plt.plot(ts)
-plt.plot(yhat)
+# plt.plot(ts)
+# plt.plot(yhat)
 
-plt.show()
+# plt.show()
 
 # p: 13887.31775824237  q: 2157.2851580033325  E: 5840921.397489025
+
+
+# Test
+# init = fit_pred['ata_forecast'][-1]
+init = 479
+# W = [fit_pred['ata_model']['a_demand'], fit_pred['ata_model']['a_interval']]
+W = [13887.31775824237, 2157.2851580033325]
+test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
+test_data = test_data.fillna(0)
+ts_test = test_data['Feature']
+
+test_out = ata_forecast(W, init, len(ts_test), 1e-7)
+
+# E = test_out - ts_test
+# E = E[E != np.array(None)]
+# E = np.mean(E ** 2)
+# print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[1], E))
+
+# print(ts_test)
+# print(test_out)
+
+plt.plot(ts_test)
+plt.plot(test_out)
+
+plt.show()
