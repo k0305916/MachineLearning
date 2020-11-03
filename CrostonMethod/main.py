@@ -46,6 +46,8 @@ def fit_croston(
                     
                     croston_forecast = croston_training_result['out_of_sample_forecast']
 
+                    croston_demand_series = croston_training_result['fit_output']
+
                 except Exception as e:
                     
                     croston_model = None
@@ -63,7 +65,8 @@ def fit_croston(
         return {
                     'croston_model':            croston_model,
                     'croston_fittedvalues':     croston_fittedvalues,
-                    'croston_forecast':         croston_forecast
+                    'croston_forecast':         croston_forecast,
+                    'croston_demand_series':    croston_demand_series
                 }
 
 def _croston(
@@ -139,8 +142,11 @@ def _croston(
     frc_in = np.zeros(input_series_length)
     tv = np.concatenate([nzd, [input_series_length]]) # Time vector used to create frc_in forecasts
     
+    zfit_output = np.zeros(input_series_length)
+
     for i in range(k):
         frc_in[tv[i]:min(tv[i+1], input_series_length)] = cc[i]
+        zfit_output[tv[i]:min(tv[i+1], input_series_length)] = zfit[i]
 
     # forecast out_of_sample demand rate
     
@@ -154,7 +160,8 @@ def _croston(
     return_dictionary = {
                             'model':                    croston_model,
                             'in_sample_forecast':       frc_in,
-                            'out_of_sample_forecast':   frc_out
+                            'out_of_sample_forecast':   frc_out,
+                            'fit_output':               zfit_output
                         }
     
     return return_dictionary
@@ -168,7 +175,7 @@ def _croston_opt(
                     nop = 1
                 ):
     
-    p0 = np.array([0.1] * nop)
+    p0 = np.array([1.0] * nop)
 
     # 通过minimize的方式，获取到一个最优化值。
     # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
@@ -214,15 +221,15 @@ def _croston_cost(
 
     return E
 
-# a = np.zeros(7)
-# val = [1.0,4.0,5.0,3.0]
-# idxs = [1,2-1,6-2,7-3]
-# ts = np.insert(a, idxs, val)
+a = np.zeros(7)
+val = [1.0,4.0,5.0,3.0]
+idxs = [1,2-1,6-2,7-3]
+ts = np.insert(a, idxs, val)
 
 
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
 
 fit_pred = fit_croston(ts, 4, 'original') # croston's method
 
@@ -231,6 +238,7 @@ fit_pred = fit_croston(ts, 4, 'original') # croston's method
 
 
 yhat = np.concatenate([fit_pred['croston_fittedvalues'], fit_pred['croston_forecast']])
+# yhat = fit_pred['croston_demand_series']
 
 print(ts)
 print(yhat)

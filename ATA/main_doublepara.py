@@ -41,6 +41,8 @@ def fit_ata(
                     
                     ata_forecast = ata_training_result['out_of_sample_forecast']
 
+                    ata_demand_series = ata_training_result['fit_output']
+
                 except Exception as e:
                     
                     ata_model = None
@@ -58,7 +60,8 @@ def fit_ata(
         return {
                     'ata_model':            ata_model,
                     'ata_fittedvalues':     ata_fittedvalues,
-                    'ata_forecast':         ata_forecast
+                    'ata_forecast':         ata_forecast,
+                    'ata_demand_series':    ata_demand_series
                 }
 
 def _ata(
@@ -126,9 +129,12 @@ def _ata(
     
     frc_in = np.zeros(input_series_length)
     tv = np.concatenate([nzd, [input_series_length]]) # Time vector used to create frc_in forecasts
+
+    zfit_output = np.zeros(input_series_length)
     
     for i in range(k):
         frc_in[tv[i]:min(tv[i+1], input_series_length)] = cc[i]
+        zfit_output[tv[i]:min(tv[i+1], input_series_length)] = zfit[i]
 
     # forecast out_of_sample demand rate
     
@@ -143,7 +149,8 @@ def _ata(
     return_dictionary = {
                             'model':                    ata_model,
                             'in_sample_forecast':       frc_in,
-                            'out_of_sample_forecast':   frc_out
+                            'out_of_sample_forecast':   frc_out,
+                            'fit_output':               zfit_output
                         }
     
     return return_dictionary
@@ -156,7 +163,7 @@ def _ata_opt(
                     nop = 2
                 ):
 
-    p0 = np.array([3000,1000])
+    p0 = np.array([1,1])
     pbounds = ((1, input_series_length), (0, input_series_length))
 
     # 通过minimize的方式，获取到一个最优化值。
@@ -238,46 +245,50 @@ def ata_forecast(w, init, h, epsilon):
 # ts = np.insert(a, idxs, val)
 
 
-# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-# input_data = input_data.fillna(0)
-# ts = input_data['Feature']
+input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+input_data = input_data.fillna(0)
+ts = input_data['Feature']
 
-# fit_pred = fit_ata(ts, 4)
+fit_pred = fit_ata(ts, 0)
 
 
 # yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+yhat = fit_pred['ata_demand_series']
 
+opt_model = fit_pred['ata_model']
+print("opt P: {0}   Q: {1}".format(opt_model["p"],opt_model["q"]))
 # print(ts)
 # print(yhat)
 
-# plt.plot(ts)
-# plt.plot(yhat)
+plt.plot(ts)
+plt.plot(yhat)
 
-# plt.show()
+plt.show()
 
 # p: 13887.31775824237  q: 2157.2851580033325  E: 5840921.397489025
 
-
-# Test
+# # -----------------------Invalid-------------------------------
+# # Test
 # init = fit_pred['ata_forecast'][-1]
-init = 479
+# # init = 479
 # W = [fit_pred['ata_model']['a_demand'], fit_pred['ata_model']['a_interval']]
-W = [13887.31775824237, 2157.2851580033325]
-test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
-test_data = test_data.fillna(0)
-ts_test = test_data['Feature']
+# # W = [13887.31775824237, 2157.2851580033325]
+# test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
+# test_data = test_data.fillna(0)
+# ts_test = test_data['Feature']
 
-test_out = ata_forecast(W, init, len(ts_test), 1e-7)
+# test_out = ata_forecast(W, init, len(ts_test), 1e-7)
 
-# E = test_out - ts_test
-# E = E[E != np.array(None)]
-# E = np.mean(E ** 2)
-# print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[1], E))
+# # E = test_out - ts_test
+# # E = E[E != np.array(None)]
+# # E = np.mean(E ** 2)
+# # print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[1], E))
 
-# print(ts_test)
-# print(test_out)
+# # print(ts_test)
+# # print(test_out)
 
-plt.plot(ts_test)
-plt.plot(test_out)
+# plt.plot(ts_test)
+# plt.plot(test_out)
 
-plt.show()
+# plt.show()
+# # ----------------------------------------------------------
