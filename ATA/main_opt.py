@@ -193,7 +193,7 @@ def _ata_opt(
                     nop = 2
                 ):
 
-# Bounded region of parameter space
+    # Bounded region of parameter space
     pbounds = {'p': (1, input_series_length), 'q': (0, input_series_length)}
 
     optimizer = BayesianOptimization(
@@ -230,13 +230,16 @@ def _ata_cost(
                 epsilon = epsilon
             )['in_sample_forecast']
 
-    count = min(input_series_length-1,(int)(p0[0]))
-    indata = input_series[count:]
-    outdata = frc_in[count:]
-    E = indata - outdata
-    # E = input_series - frc_in
+    E = input_series - frc_in
+
+    # count = min(input_series_length-1,(int)(p0[0]))
+    # indata = input_series[count:]
+    # outdata = frc_in[count:]
+    # E = indata - outdata
+    
     E = E[E != np.array(None)]
-    E = np.mean(E ** 2)/(input_series_length - count + epsilon)
+    # E = np.sqrt(np.mean(E ** 2))
+    E = np.mean(E ** 2)
 
     if len(p0) < 2:
         print(('demand : {0}  a_interval: {1} rmse: {2}').format(p0[0], p0[0], E))
@@ -258,7 +261,8 @@ def calc_opt(p,q):
 
 input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
 input_data = input_data.fillna(0)
-ts = input_data['Feature'][:1000]
+# ts = input_data['Feature'][:4000]
+ts = input_data['Feature']
 
 # demand : 1.0  a_interval: 0.0 rmse: 0.03419066029127796
 
