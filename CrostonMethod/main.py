@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+import scipy.optimize
 import matplotlib.pyplot as plt
 
 def fit_croston(
@@ -98,6 +99,9 @@ def _croston(
     zfit[0] = init[0]
     xfit[0] = init[1]
 
+    # a_demand = w
+    # a_interval = w
+
     if len(w) == 1:
         a_demand = w[0]
         a_interval = w[0]
@@ -121,7 +125,7 @@ def _croston(
         correction_factor = 1
     
     # fit model
-    
+    #可以为相同值，也可以为不同值。
     for i in range(1,k):
         zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
         xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval
@@ -175,7 +179,7 @@ def _croston_opt(
                     nop = 1
                 ):
     
-    p0 = np.array([1.0] * nop)
+    p0 = np.array([1.0, 1.0] * nop)
 
     # 通过minimize的方式，获取到一个最优化值。
     # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
@@ -186,7 +190,14 @@ def _croston_opt(
                         args=(input_series, input_series_length, croston_variant, epsilon)
                     )
     
-    constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))   
+    constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))
+
+    # pbounds = ((0, 1),)
+    # wopt = scipy.optimize.brute(_croston_cost, pbounds,
+    #                             args=(input_series, input_series_length, croston_variant, epsilon))
+    
+    # # constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))
+    # constrained_wopt = wopt
     
     return constrained_wopt
     
@@ -221,15 +232,15 @@ def _croston_cost(
 
     return E
 
-a = np.zeros(7)
-val = [1.0,4.0,5.0,3.0]
-idxs = [1,2-1,6-2,7-3]
-ts = np.insert(a, idxs, val)
+# a = np.zeros(7)
+# val = [1.0,4.0,5.0,3.0]
+# idxs = [1,2-1,6-2,7-3]
+# ts = np.insert(a, idxs, val)
 
 
-# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-# input_data = input_data.fillna(0)
-# ts = input_data['Feature']
+input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+input_data = input_data.fillna(0)
+ts = input_data['Feature']
 
 fit_pred = fit_croston(ts, 4, 'original') # croston's method
 
@@ -237,40 +248,49 @@ fit_pred = fit_croston(ts, 4, 'original') # croston's method
 # fit_pred = fit_croston(ts, 4, 'sbj') # Shale-Boylan-Johnston
 
 
-yhat = np.concatenate([fit_pred['croston_fittedvalues'], fit_pred['croston_forecast']])
+# yhat = np.concatenate([fit_pred['croston_fittedvalues'], fit_pred['croston_forecast']])
 # yhat = fit_pred['croston_demand_series']
+yhat = fit_pred['croston_fittedvalues']
 
-print(ts)
-print(yhat)
+opt_model = fit_pred['croston_model']
+print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+
+# print(ts)
+# print(yhat)
 
 plt.plot(ts)
 plt.plot(yhat)
 
 plt.show()
 
+# α，β为相同值时
+# demand : [0.34964696]  a_interval: [0.34964696] rmse: 6651144.13252132  grid search
 # demand : 0.34963623046875086  a_interval: 0.34963623046875086 rmse: 6612837.1950832065
 
+# α，β为不同值时
+# demand : 0.87060681 a_interval: 0.19597904 rmse: 5533314.582112004
 
-# Test
-W = [fit_pred['croston_model']['a_demand'], fit_pred['croston_model']['a_interval']]
-test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
-test_data = test_data.fillna(0)
-ts_test = test_data['Feature']
 
-test_out = _croston(ts_test, len(ts_test),'original',W,0, 1e-7)
-test_out = test_out['in_sample_forecast']
+# # Test
+# W = [fit_pred['croston_model']['a_demand'], fit_pred['croston_model']['a_interval']]
+# test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
+# test_data = test_data.fillna(0)
+# ts_test = test_data['Feature']
 
-E = test_out - ts_test
-E = E[E != np.array(None)]
-E = np.mean(E ** 2)
-print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[0], E))
+# test_out = _croston(ts_test, len(ts_test),'original',W,0, 1e-7)
+# test_out = test_out['in_sample_forecast']
 
-# print(ts_test)
-# print(test_out)
+# E = test_out - ts_test
+# E = E[E != np.array(None)]
+# E = np.mean(E ** 2)
+# print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[0], E))
 
-plt.plot(ts_test)
-plt.plot(test_out)
+# # print(ts_test)
+# # print(test_out)
 
-plt.show()
+# plt.plot(ts_test)
+# plt.plot(test_out)
+
+# plt.show()
 
 # out: a_demand : 0.34963867187500086  a_interval: 0.34963867187500086 rmse: 13011388.362962488
