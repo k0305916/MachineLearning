@@ -185,10 +185,15 @@ def _croston_opt(
     #                 )
 
     # Bounded region of parameter space
-    pbounds = {'p0': (0, 1)}
+    # 为相同值时
+    # pbounds = {'p0': (0, 1)}
+
+    # 为不同值时
+    pbounds = {'p': (0 ,1), 'q': (0, 1)}
 
     optimizer = BayesianOptimization(
-        f=calc_opt,
+        # f=calc_opt1,
+        f=calc_opt2,
         pbounds=pbounds,
         verbose=2,
         random_state=1,
@@ -198,8 +203,8 @@ def _croston_opt(
 
     wopt = optimizer.max
 
-    constrained_wopt = np.minimum([1], np.maximum([0], wopt['params']['p0']))
-    
+    # constrained_wopt = np.minimum([1], np.maximum([0], wopt['params']['p0']))
+    constrained_wopt = [wopt['params']['p'], wopt['params']['q']]
     return constrained_wopt
     
 
@@ -233,8 +238,12 @@ def _croston_cost(
 
     return E
 
-def calc_opt(p0):
+def calc_opt1(p0):
     E = _croston_cost([p0],input_series1, len(input_series1),'original',epsilon1)
+    return -E
+
+def calc_opt2(p, q):
+    E = _croston_cost([p,q],input_series1, len(input_series1),'original',epsilon1)
     return -E
 
 
@@ -256,41 +265,47 @@ fit_pred = fit_croston(ts, 4, 'original') # croston's method
 
 yhat = np.concatenate([fit_pred['croston_fittedvalues'], fit_pred['croston_forecast']])
 
+opt_model = fit_pred['croston_model']
+print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+
 # print(ts)
 # print(yhat)
 
-# plt.plot(ts)
-# plt.plot(yhat)
+plt.plot(ts)
+plt.plot(yhat)
 
-# plt.show()
+plt.show()
 
 # |  28       | -6.613e+0 |  0.3492   |
 # demand : 0.3498813038589822  a_interval: 0.3498813038589822 rmse: 6612838.035590242
 
+# 为不同值时
+# demand : 0.9021569555343326  a_interval: 0.1878818737137048 rmse: 5538580.716017791
 
 
-# Test
-W = [fit_pred['croston_model']['a_demand'], fit_pred['croston_model']['a_interval']]
-test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
-test_data = test_data.fillna(0)
-ts_test = test_data['Feature']
 
-test_out = _croston(ts_test, len(ts_test),'original',W,0, epsilon1)
-test_out = test_out['in_sample_forecast']
+# # Test
+# W = [fit_pred['croston_model']['a_demand'], fit_pred['croston_model']['a_interval']]
+# test_data = pd.read_csv("./data/M4DataSet/NewYearlyTest.csv")
+# test_data = test_data.fillna(0)
+# ts_test = test_data['Feature']
 
-E = test_out - ts_test
-E = E[E != np.array(None)]
-E = np.mean(E ** 2)
-print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[1], E))
+# test_out = _croston(ts_test, len(ts_test),'original',W,0, epsilon1)
+# test_out = test_out['in_sample_forecast']
 
-# print(ts_test)
-# print(test_out)
+# E = test_out - ts_test
+# E = E[E != np.array(None)]
+# E = np.mean(E ** 2)
+# print(('out: a_demand : {0}  a_interval: {1} rmse: {2}').format(W[0], W[1], E))
 
-plt.plot(ts_test)
-plt.plot(test_out)
+# # print(ts_test)
+# # print(test_out)
 
-plt.show()
+# plt.plot(ts_test)
+# plt.plot(test_out)
 
-# print(test_rmse)
+# plt.show()
 
-# out: a_demand : 0.3495037841339784  a_interval: 0.3495037841339784 rmse: 13015818.528248474
+# # print(test_rmse)
+
+# # out: a_demand : 0.3495037841339784  a_interval: 0.3495037841339784 rmse: 13015818.528248474
