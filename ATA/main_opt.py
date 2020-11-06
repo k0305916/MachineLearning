@@ -146,35 +146,40 @@ def _ata(
     
     # ata 中的weight符合指数分布，因此并越到后面，weight下降越快。
     # 因此， ata的最后一个值，基本上是等于最后一个fitted value。
-    # if h > 0:
-    #     frc_out = np.array([cc[k-1]] * h)
-    # else:
-    #     frc_out = None
-
     if h > 0:
-        frc_out = []
-        frc_xfit = np.zeros(h+1)
-        frc_zfit = np.zeros(h+1)
-        i=0
-        for i in range(h):
-            if i == 0 :
-                frc_zfit[0] = zfit[-1]
-                frc_xfit[0] = xfit[-1]
-            frc_out.append(frc_zfit[i] / frc_xfit[i])
-            a_demand = p / (input_series_length + i)
-            a_interval = q / (input_series_length + i)
-            # 1. 以0作为观测值；
-            frc_zfit[i+1] = (1-a_demand) * frc_zfit[i]
-            # 2. 以平均值作为观测值；
-            # frc_zfit[i+1] = np.mean(z) + (1-a_demand) * frc_zfit[i]
-
-            #frc_xfit一直以拟合值作计算。
-            # frc_xfit[i+1] = (1-a_interval) * frc_xfit[i]
-            frc_xfit[i+1] = frc_xfit[i] + (1 - frc_xfit[i])* a_interval
-
-            
+        frc_out = np.array([cc[k-1]] * h)
     else:
         frc_out = None
+
+    # if h > 0:
+    #     frc_out = []
+    #     frc_xfit = np.zeros(h+1)
+    #     frc_zfit = np.zeros(h+1)
+    #     i=0
+    #     for i in range(h):
+    #         if i == 0 :
+    #             frc_zfit[0] = zfit[-1]
+    #             frc_xfit[0] = xfit[-1]
+    #         frc_out.append(frc_zfit[i] / frc_xfit[i])
+    #         a_demand = p / (input_series_length + i)
+    #         a_interval = q / (input_series_length + i)
+    #         # 1. 以0作为观测值；
+    #         # frc_zfit[i+1] = (1-a_demand) * frc_zfit[i]
+    #         # 2. 以平均值作为观测值；
+    #         # frc_zfit[i+1] = np.mean(z) + (1-a_demand) * frc_zfit[i]
+    #         frc_zfit[i+1] = np.sum(frc_zfit) / (i+1)  + (1-a_demand) * frc_zfit[i]
+    #         # frc_zfit[i+1] = zfit[-1] * a_demand + (1-a_demand) * (frc_zfit[i] + i * xfit[-1])
+    #         # frc_zfit[i+1] = frc_zfit[i] + a_demand * (zfit[-1] - frc_zfit[i])
+
+    #         #frc_xfit一直以拟合值作计算。
+    #         # frc_xfit[i+1] = (1-a_interval) * frc_xfit[i]
+    #         frc_xfit[i+1] = frc_xfit[i] + (1 - frc_xfit[i])* a_interval
+    #         # frc_xfit[i+1] = a_interval * (frc_zfit[i+1] - frc_zfit[i])  + (1 - a_interval) * (i * xfit[-1])
+    #         # frc_xfit[i+1] = frc_xfit[i] + a_interval * (xfit[-1] - frc_xfit[i])
+
+            
+    # else:
+    #     frc_out = None
     
     return_dictionary = {
                             'model':                    ata_model,
@@ -229,7 +234,7 @@ def _ata_cost(
                 h=0,
                 epsilon = epsilon
             )['in_sample_forecast']
-
+    # MSE-------------------------------------
     E = input_series - frc_in
 
     # count = min(input_series_length-1,(int)(p0[0]))
@@ -240,6 +245,13 @@ def _ata_cost(
     E = E[E != np.array(None)]
     # E = np.sqrt(np.mean(E ** 2))
     E = np.mean(E ** 2)
+
+    # # MAPE--------------------------------
+    # E1 = (np.fabs(input_series - frc_in))
+    # E2 = (np.fabs(input_series) + np.fabs(frc_in)) / 2
+    # E = E1 / E2
+    # E = E.sum() / len(input_series)
+
 
     if len(p0) < 2:
         print(('demand : {0}  a_interval: {1} rmse: {2}').format(p0[0], p0[0], E))
