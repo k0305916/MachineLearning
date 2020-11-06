@@ -4,7 +4,6 @@ from scipy.optimize import minimize
 import scipy.optimize
 import matplotlib.pyplot as plt
 
-# p, q 看一下是否可以通过动态获取。
 def fit_ata(
                     input_endog,
                     forecast_length               
@@ -33,7 +32,7 @@ def fit_ata(
                     ata_training_result = _ata(
                                                             input_series = input_series, 
                                                             input_series_length = input_length,
-                                                            w = w_opt, 
+                                                            w = w_opt[0], 
                                                             h = forecast_length,
                                                             epsilon = epsilon,
                                                       )
@@ -43,6 +42,8 @@ def fit_ata(
                     ata_forecast = ata_training_result['out_of_sample_forecast']
 
                     ata_demand_series = ata_training_result['fit_output']
+
+                    ata_mse = w_opt[1]
 
                 except Exception as e:
                     
@@ -62,7 +63,8 @@ def fit_ata(
                     'ata_model':            ata_model,
                     'ata_fittedvalues':     ata_fittedvalues,
                     'ata_forecast':         ata_forecast,
-                    'ata_demand_series':    ata_demand_series
+                    'ata_demand_series':    ata_demand_series,
+                    'ata_mse':              ata_mse
                 }
 
 def _ata(
@@ -102,7 +104,7 @@ def _ata(
         a_demand = p / nzd[i]
         a_interval = q / nzd[i]
 
-        # 这个地方其实有些不懂, 为什么要这样操作？
+        # 提升效率的操作方式
         if nzd[i] <= p:
             zfit[i] = z[i]
         else:
@@ -208,14 +210,16 @@ def _ata_opt(
                     )
 
     constrained_wopt = wopt.x
+    fun = wopt.fun
 
-    # wopt = scipy.optimize.brute(_ata_cost,((1, input_series_length), (0, input_series_length)),
+    # wopt = scipy.optimize.brute(_ata_cost,pbounds,
     #                             args=(input_series, input_series_length, epsilon))
     
     # # constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))
     # constrained_wopt = wopt
+    # fun = 0
     
-    return constrained_wopt
+    return (constrained_wopt, fun)
 
 # 仅仅通过rmse来判断，容易产生过拟合的问题，因此需要添加新的正则化来减轻过拟合~
 def _ata_cost(
@@ -224,6 +228,12 @@ def _ata_cost(
                 input_series_length,
                 epsilon
                 ):
+    #防止进入负数区间
+    if p0[0] < 0 or p0[1] < 0:
+        return 3.402823466E+38
+    # Q: [0, P]  P: [1,n]
+    if p0[1] > p0[0]:
+        return 3.402823466E+38
     frc_in = _ata(
                     input_series = input_series,
                     input_series_length = input_series_length,
@@ -232,15 +242,23 @@ def _ata_cost(
                     epsilon = epsilon
                         )['in_sample_forecast']
 
-    E = input_series - frc_in
-    # count = min(input_series_length-1,(int)(p0[0]))
-    # indata = input_series[count:]
-    # outdata = frc_in[count:]
-    # E = indata - outdata
+    # MSE-------------------------------------
+    # E = input_series - frc_in
+
+    # # count = min(input_series_length-1,(int)(p0[0]))
+    # # indata = input_series[count:]
+    # # outdata = frc_in[count:]
+    # # E = indata - outdata
     
-    E = E[E != np.array(None)]
-    # E = np.sqrt(np.mean(E ** 2))
-    E = np.mean(E ** 2)
+    # E = E[E != np.array(None)]
+    # # E = np.sqrt(np.mean(E ** 2))
+    # E = np.mean(E ** 2)
+
+    # MAPE--------------------------------
+    E1 = (np.fabs(input_series - frc_in))
+    E2 = (np.fabs(input_series) + np.fabs(frc_in)) / 2
+    E = E1 / E2
+    E = E.sum() / len(input_series)
 
     # print(("count: {0}  p: {1}  q: {2}  E: {3}").format(count, p0[0], p0[1], E))
     print(("p: {0}  q: {1}  E: {2}").format(p0[0], p0[1], E))
@@ -258,14 +276,48 @@ input_data = input_data.fillna(0)
 ts = input_data['Feature']
 # ts = input_data['Feature'][:1000]
 
-fit_pred = fit_ata(ts, 4)
+#-------------Cross validation------------------------------------
+cv_count = 5
+repeatscale = 0.1
+split_count = int(len(ts) / cv_count)
+# split_count = int((1+repeatscale) * split_count + 0.5)
+split_range = int(split_count * repeatscale +0.5)
+dataend = len(ts)
+opt_para = []
+for i in range(cv_count):
+    start = i * split_count - split_range
+    end = (i+1) * split_count + split_range
+    if start < 0:
+        start = 0
+    if end > dataend:
+        end = dataend
+    data = ts[start: end]
+    fit_pred = fit_ata(data, 4)
+    opt_model = fit_pred['ata_model']
+    para = (opt_model["a_demand"], opt_model["a_interval"])
+    # MSE = _ata_cost((opt_model["a_demand"], opt_model["a_interval"]), ts, len(ts), 1e-7)
+    MSE = fit_pred['ata_mse']
+    print("cv: {0}\topt P: {1}\tQ: {2}\tMSE: {3}".format(i, opt_model["a_demand"], opt_model["a_interval"], MSE))
+    opt_para.append({"para":para, "MSE": MSE, 'fited': fit_pred})
 
 
-yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+
+#--------------------------Output the best paras----------------------------
+opt_para = sorted(opt_para, key=lambda item: item['MSE'])
+best_para = opt_para[0]
+test_data = np.asarray(ts)
+fit_pred = _ata(test_data,len(test_data),best_para['para'],4,1e-7)
+
+test_fited = fit_pred['in_sample_forecast']
+E = test_data - test_fited
+E = E[E != np.array(None)]
+MSE = np.mean(E ** 2)
+
+yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
 # yhat = fit_pred['ata_demand_series']
 
-opt_model = fit_pred['ata_model']
-print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+opt_model = fit_pred['model']
+print("output P: {0}\tQ: {1}\tmse: {2}".format(opt_model["a_demand"],opt_model["a_interval"], MSE))
 # print(ts)
 # print(yhat)
 
@@ -273,7 +325,10 @@ plt.plot(ts)
 plt.plot(yhat)
 
 plt.show()
+print("")
 
+
+# round 1: output P: 969.6244064590888     Q: 217.45943750155297   mse: 7836237.429606486
 # p: 13782.98556931908  q: 2499.000000000012  E: 2429.2208993823615 grid search
 # p: 13887.31775824237  q: 2157.2851580033325  E: 5840921.397489025
 # p: 14293.167068707324  q: 1e-08  E: 2687.3898919142553
