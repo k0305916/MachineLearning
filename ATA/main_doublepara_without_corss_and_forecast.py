@@ -81,10 +81,8 @@ def _ata(
     k = len(nzd)
     z = input_series[nzd] # demand
     
-    x = np.concatenate([[nzd[0]], np.diff(nzd)]) # intervals
-
     # initialize
-    
+    x = np.concatenate([[nzd[0]], np.diff(nzd)]) # intervals
     init = [z[0], np.mean(x)]
     
     zfit = np.array([None] * k)
@@ -104,23 +102,41 @@ def _ata(
         p = w[0]
         q = w[1]
     # fit model
-    for i in range(1,k):
+    cc = []
+    nzd = np.delete(nzd, 0)
+    nzd = np.concatenate([nzd, [input_series_length]])
+    # a_demand = p / input_series_length
+    # a_interval = q / input_series_length
+    for i in range(0,k):
+        # if nzd[i] != 0:
         a_demand = p / nzd[i]
         a_interval = q / nzd[i]
+
+        if i == 0:
+            xfit[i] = 0
 
         # 提升效率的操作方式
         if nzd[i] <= p:
             zfit[i] = z[i]
         else:
-            zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
+            # zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
+            zfit[i] = a_demand * z[i] + (1-a_demand) * (zfit[i-1] + xfit[i-1])   #demand
 
 
-        if nzd[i] <= q:
-            xfit[i] = z[i] - z[i-1]
+        # for single exponential smoothing of ata
+        if q == 0:
+            xfit[i] = 0
         else:
-            xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval            
+            # for holt's linear trend method of ata
+            if i != 0:
+                if nzd[i] <= q:
+                    xfit[i] = z[i] - z[i-1]
+                else:
+                    xfit[i] = a_interval * (zfit[i] - zfit[i-1]) + (1-a_interval) * xfit[i-1] # interval
+
+        cc.append(zfit[i] + xfit[i])
         
-    cc = correction_factor * zfit / (xfit + epsilon)
+    # cc = correction_factor * zfit / (xfit + epsilon)
     
     ata_model = {
                         'a_demand':             p,
@@ -137,21 +153,44 @@ def _ata(
     tv = np.concatenate([nzd, [input_series_length]]) # Time vector used to create frc_in forecasts
 
     zfit_output = np.zeros(input_series_length)
+    xfit_output = np.zeros(input_series_length)
     
     for i in range(k):
         frc_in[tv[i]:min(tv[i+1], input_series_length)] = cc[i]
         zfit_output[tv[i]:min(tv[i+1], input_series_length)] = zfit[i]
+        xfit_output[tv[i]:min(tv[i+1], input_series_length)] = xfit[i]
 
     # forecast out_of_sample demand rate
     
     # ata 中的weight符合超几何分布，因此并不会出现越到后面，weight下降越快。
     # 因此， ata的最后一个值，并不会100%等于最后一个fitted value。
     # 从forecast的公式可知，其中并没有 h 可迭代参数，因此，forecast的结果都是最后一个。
+    # if h > 0:
+    #     frc_out = np.array([cc[k-1]] * h)
+    # else:
+    #     frc_out = None
+
+    f = open("frc_in.txt","tw")
+    for i in range(len(zfit_output)) :
+        f.write(str(zfit_output[i]) +'\t' + str(xfit_output[i]) + '\t' + str(frc_in[i]) + '\n')
+    
+
     if h > 0:
-        frc_out = np.array([cc[k-1]] * h)
+        frc_out = []
+        a_demand = p / input_series_length
+        a_interval = q / input_series_length
+        zfit_frcout = a_demand * z[-1] + (1-a_demand)*(zfit_output[-1] + xfit_output[-1])
+        xfit_frcout = a_interval * (zfit_frcout - zfit_output[-1]) + (1-a_interval)*xfit_output[-1]
+
+
+        for i in range(1,h+1):
+            result = zfit_frcout + i * xfit_frcout
+            frc_out.append(result)
+            f.write(str(zfit_frcout) +'\t' + str(xfit_frcout) + '\t' + str(result) + '\n')
     else:
         frc_out = None
 
+    f.close()
     return_dictionary = {
                             'model':                    ata_model,
                             'in_sample_forecast':       frc_in,
@@ -169,6 +208,7 @@ def _ata_opt(
                     nop = 2
                 ):
 
+    # 0.2 * N
     # init_p = np.random.randint(1, input_series_length)
     # init_q = np.random.randint(0, init_p)
     # p0 = np.array([init_p,init_q])
@@ -267,19 +307,41 @@ def _ata_cost(
 # ts = np.insert(a, idxs, val)
 
 
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
-# ts = input_data['Feature'][:1000]
+# # Yearly dataset
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
+# # ts = input_data['Feature'][:1000]
 
+# fit_pred = fit_ata(ts, 4) # ata's method
 
+# yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+# # yhat = fit_pred['ata_demand_series']
 
-fit_pred = fit_ata(ts, 4) # ata's method
+# #excel dataset
+ts = [
+362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 360.64, 362.35, 362.77, 361.79, 
+361.41, 360.35, 357.75, 356.11, 355.24, 353.58, 347.49, 333.02, 335.56, 331.26, 322.03, 314.66, 
+312.74, 307.52, 304.87, 301.73, 300.62, 303.82, 307.40, 309.85, 311.06, 312.83, 314.97, 318.79, 
+320.81, 323.62, 325.66, 331.44, 332.61, 335.44, 336.57, 338.26, 337.20, 338.30, 342.17, 342.40, 
+341.63, 344.27, 342.50, 343.39, 343.57, 346.44, 347.07, 347.47, 349.21, 349.56, 352.03, 353.95, 
+355.17, 352.91, 356.45, 358.93, 362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 
+360.64, 362.35, 362.77, 322.03, 314.66, 312.74, 307.52, 304.87, 301.73, 300.62
+]
 
-yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+fit_pred = _ata(
+                input_series = np.asarray(ts), 
+                input_series_length = len(ts),
+                w = (30,0), 
+                h = 6,
+                epsilon = 1e-7
+                )
+        
+
+yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
 # yhat = fit_pred['ata_demand_series']
 
-opt_model = fit_pred['ata_model']
+opt_model = fit_pred['model']
 print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
 
 plt.plot(ts)
