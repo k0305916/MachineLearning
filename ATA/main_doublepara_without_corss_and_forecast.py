@@ -170,9 +170,9 @@ def _ata(
     # else:
     #     frc_out = None
 
-    f = open("frc_in.txt","tw")
-    for i in range(len(zfit_output)) :
-        f.write(str(zfit_output[i]) +'\t' + str(xfit_output[i]) + '\t' + str(frc_in[i]) + '\n')
+    # f = open("frc_in.txt","tw")
+    # for i in range(len(zfit_output)) :
+        # f.write(str(zfit_output[i]) +'\t' + str(xfit_output[i]) + '\t' + str(frc_in[i]) + '\n')
     
 
     if h > 0:
@@ -186,11 +186,11 @@ def _ata(
         for i in range(1,h+1):
             result = zfit_frcout + i * xfit_frcout
             frc_out.append(result)
-            f.write(str(zfit_frcout) +'\t' + str(xfit_frcout) + '\t' + str(result) + '\n')
+            # f.write(str(zfit_frcout) +'\t' + str(xfit_frcout) + '\t' + str(result) + '\n')
     else:
         frc_out = None
 
-    f.close()
+    # f.close()
     return_dictionary = {
                             'model':                    ata_model,
                             'in_sample_forecast':       frc_in,
@@ -275,22 +275,22 @@ def _ata_cost(
                     epsilon = epsilon
                         )['in_sample_forecast']
 
-    # MSE-------------------------------------
-    E = input_series - frc_in
+    # MSE： 在该算法中，optimize时，MSE（RMSE）并不是一个好的选择。-------------------------------------
+    # E = input_series - frc_in
 
+    # 变形MSE
     # count = min(input_series_length-1,(int)(p0[0]))
     # indata = input_series[count:]
     # outdata = frc_in[count:]
     # E = indata - outdata
     
-    E = E[E != np.array(None)]
+    # E = E[E != np.array(None)]
     # E = np.sqrt(np.mean(E ** 2))
-    E = np.mean(E ** 2)
+    # E = np.mean(E ** 2)
 
-    # # MAPE--------------------------------
-    # E1 = (np.fabs(input_series - frc_in))
-    # E2 = (np.fabs(input_series) + np.fabs(frc_in)) / 2
-    # E = E1 / E2
+    # # MAPE 针对非0数据的话，效果会比较好--------------------------------
+    E = np.abs((frc_in - input_series) / (input_series + 1))
+    E = E.sum() / input_series_length
     # E = E.sum() / len(input_series)
 
     # print(("count: {0}  p: {1}  q: {2}  E: {3}").format(count, p0[0], p0[1], E))
@@ -298,7 +298,6 @@ def _ata_cost(
         print(('p : {0}  q: {1} mse: {2}').format(p0[0], p0[0], E))
     else:
         print(('p : {0}  q: {1} mse: {2}').format(p0[0], p0[1], E))
-    # count = count + 1
     return E
 
 # a = np.zeros(7)
@@ -307,7 +306,7 @@ def _ata_cost(
 # ts = np.insert(a, idxs, val)
 
 
-# # Yearly dataset
+# Yearly dataset
 # input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
 # input_data = input_data.fillna(0)
 # ts = input_data['Feature']
@@ -329,19 +328,29 @@ ts = [
 360.64, 362.35, 362.77, 322.03, 314.66, 312.74, 307.52, 304.87, 301.73, 300.62
 ]
 
-fit_pred = _ata(
-                input_series = np.asarray(ts), 
-                input_series_length = len(ts),
-                w = (30,0), 
-                h = 6,
-                epsilon = 1e-7
-                )
+# # single process
+# fit_pred = _ata(
+#                 input_series = np.asarray(ts), 
+#                 input_series_length = len(ts),
+#                 w = (30,0), 
+#                 h = 6,
+#                 epsilon = 1e-7
+#                 )
         
 
-yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
-# yhat = fit_pred['ata_demand_series']
+# yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
+# # yhat = fit_pred['ata_demand_series']
 
-opt_model = fit_pred['model']
+# opt_model = fit_pred['model']
+# print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+
+
+# optimize process
+fit_pred = fit_ata(ts, 6) # ata's method
+
+yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+
+opt_model = fit_pred['ata_model']
 print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
 
 plt.plot(ts)
