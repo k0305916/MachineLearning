@@ -320,7 +320,7 @@ def _ata_cost(
 # #excel dataset
 ts = [
 362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 360.64, 362.35, 362.77, 361.79, 
-361.41, 360.35, 357.75, 356.11, 355.24, 353.58, 347.49, 333.02, 335.56, 331.26, 322.03, 314.66, 
+361.41, 360.35, 357.75, 356.11, 355.24, 353.58, 347.49, 333.02, 0, 331.26, 322.03, 314.66, 
 312.74, 307.52, 304.87, 301.73, 300.62, 303.82, 307.40, 309.85, 311.06, 312.83, 314.97, 318.79, 
 320.81, 323.62, 325.66, 331.44, 332.61, 335.44, 336.57, 338.26, 337.20, 338.30, 342.17, 342.40, 
 341.63, 344.27, 342.50, 343.39, 343.57, 346.44, 347.07, 347.47, 349.21, 349.56, 352.03, 353.95, 
@@ -329,29 +329,29 @@ ts = [
 ]
 
 # # single process
-# fit_pred = _ata(
-#                 input_series = np.asarray(ts), 
-#                 input_series_length = len(ts),
-#                 w = (30,0), 
-#                 h = 6,
-#                 epsilon = 1e-7
-#                 )
+fit_pred = _ata(
+                input_series = np.asarray(ts), 
+                input_series_length = len(ts),
+                w = (30,0), 
+                h = 6,
+                epsilon = 1e-7
+                )
         
 
-# yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
-# # yhat = fit_pred['ata_demand_series']
+yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
+# yhat = fit_pred['ata_demand_series']
 
-# opt_model = fit_pred['model']
-# print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
-
-
-# optimize process
-fit_pred = fit_ata(ts, 6) # ata's method
-
-yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
-
-opt_model = fit_pred['ata_model']
+opt_model = fit_pred['model']
 print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+
+
+# # optimize process
+# fit_pred = fit_ata(ts, 6) # ata's method
+
+# yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+
+# opt_model = fit_pred['ata_model']
+# print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
 
 plt.plot(ts)
 plt.plot(yhat)
