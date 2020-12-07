@@ -262,7 +262,7 @@ def _ata_cost(
 
     # MSE： 在该算法中，optimize时，MSE（RMSE）并不是一个好的选择。-------------------------------------
     frc_in.pop()
-    # E = input_series - frc_in
+    E = input_series - frc_in
 
     # # 变形MSE
     # # count = min(input_series_length-1,(int)(p0[0]))
@@ -271,8 +271,8 @@ def _ata_cost(
     # # E = indata - outdata
     
     # standard MSE
-    # E = E[E != np.array(None)]
-    # E = np.mean(E ** 2)
+    E = E[E != np.array(None)]
+    E = np.mean(E ** 2)
 
     # # standard RMSE
     # E = E[E != np.array(None)]
@@ -282,11 +282,11 @@ def _ata_cost(
     # E = np.abs((frc_in - input_series)) / (np.abs(input_series) + 1e-7)
     # E = E.sum() / input_series_length
 
-    # PAL MAPE
-    E = np.abs((frc_in - input_series))
-    up = E.sum()
-    low = input_series.sum()
-    E = up / low
+    # # PAL MAPE
+    # E = np.abs((frc_in - input_series))
+    # up = E.sum()
+    # low = input_series.sum()
+    # E = up / low
 
     # print(("count: {0}  p: {1}  q: {2}  E: {3}").format(count, p0[0], p0[1], E))
     if len(p0) < 2:
