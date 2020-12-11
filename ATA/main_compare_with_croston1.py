@@ -75,8 +75,22 @@ def _ata(
             epsilon
             ):
     
-    zfit = np.array([None] * input_series_length)
-    xfit = np.array([0] * input_series_length)
+    # Croston decomposition
+    nzd = np.where(input_series != 0)[0] # find location of non-zero demand
+    
+    k = len(nzd)
+    z = input_series[nzd] # demand
+    
+    x = np.concatenate([[nzd[0]], np.diff(nzd)]) # intervals
+
+    # initialize
+    init = [z[0], np.mean(x)]
+    
+    zfit = np.array([None] * k)
+    xfit = np.array([None] * k)
+
+    zfit[0] = init[0]
+    xfit[0] = init[1]
     
     if len(w) < 2:
         p = w[0]
@@ -84,39 +98,29 @@ def _ata(
     else:
         p = w[0]
         q = w[1]
+
+
+    if q > p:
+        print("error")
+
     # fit model
-    cc = []
-    cc.append(input_series[0])
-    j = 1
-    for i in range(0,input_series_length):
-        a_demand = p / j
-        a_interval = q / j
+    #可以为相同值，也可以为不同值。
+    for i in range(1,k):
+        a_demand = p / nzd[i]
+        a_interval = q / nzd[i]
 
-        # 提升效率的操作方式
-        if i <= p:
-            zfit[i] = input_series[i]
+        if nzd[i] < p:
+            zfit[i] = z[i]
         else:
-            # zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
-            zfit[i] = a_demand * input_series[i] + (1-a_demand) * (zfit[i-1] + xfit[i-1])   #demand
+            zfit[i] = a_demand * z[i] + (1 - a_demand) * zfit[i-1]
 
-
-        # for single exponential smoothing of ata
-        if q != 0:
-            # for holt's linear trend method of ata
-            if i == 0:
-                xfit[i] = 0
-            elif i <= q: 
-                xfit[i] = input_series[i] - input_series[i-1]
-            else:
-                xfit[i] = a_interval * (zfit[i] - zfit[i-1]) + (1-a_interval) * xfit[i-1] # interval
-                # xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval
-
-        cc.append(zfit[i] + xfit[i])
-        # print(zfit[i] + xfit[i])
-        j+=1
-        
-    # cc = correction_factor * zfit / (xfit + epsilon)
+        if nzd[i] < q:
+            xfit[i] = z[i] - z[i-1]
+        else:
+            xfit[i] = a_interval * x[i] + (1-a_interval) * xfit[i-1]
     
+    cc = zfit / (xfit + epsilon)
+
     ata_model = {
                         'a_demand':             p,
                         'a_interval':           q,
@@ -125,23 +129,15 @@ def _ata(
                         'demand_process':       pd.Series(cc)
                     }
     
-    # calculate in-sample demand rate
-    frc_in = cc
-
-    # forecast out_of_sample demand rate
+    # calculate in-sample demand rate    
+    frc_in = np.zeros(input_series_length)
+    tv = np.concatenate([nzd, [input_series_length]]) # Time vector used to create frc_in forecasts
     
-    # ata 中的weight符合超几何分布，因此并不会出现越到后面，weight下降越快。
-    # 因此， ata的最后一个值，并不会100%等于最后一个fitted value。
-    # 从forecast的公式可知，其中并没有 h 可迭代参数，因此，forecast的结果都是最后一个。
-    # if h > 0:
-    #     frc_out = np.array([cc[k-1]] * h)
-    # else:
-    #     frc_out = None
+    zfit_output = np.zeros(input_series_length)
 
-    # f = open("frc_in.txt","tw")
-    # for i in range(len(zfit_output)) :
-        # f.write(str(zfit_output[i]) +'\t' + str(xfit_output[i]) + '\t' + str(frc_in[i]) + '\n')
-    
+    for i in range(k):
+        frc_in[tv[i]:min(tv[i+1], input_series_length)] = cc[i]
+        zfit_output[tv[i]:min(tv[i+1], input_series_length)] = zfit[i]
 
     if h > 0:
         frc_out = []
@@ -250,8 +246,12 @@ def _ata_cost(
                 epsilon
                 ):
     # #防止进入负数区间
-    if p0[0] < 0 or p0[1] < 0:
+    if p0[0] <= 0 or p0[1] < 0:
         return 3.402823466E+38
+
+    if p0[1] > p0[0]:
+        return 3.402823466E+38
+    
     frc_in = _ata(
                     input_series = input_series,
                     input_series_length = input_series_length,
@@ -261,7 +261,7 @@ def _ata_cost(
                         )['in_sample_forecast']
 
     # MSE： 在该算法中，optimize时，MSE（RMSE）并不是一个好的选择。-------------------------------------
-    frc_in.pop()
+    # frc_in.pop()
     E = input_series - frc_in
 
     # # 变形MSE
@@ -301,11 +301,11 @@ def _ata_cost(
 # ts = np.insert(a, idxs, val)
 
 
-# Yearly dataset
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
-# ts = input_data['Feature'][:1000]
+# # Yearly dataset
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
+# # ts = input_data['Feature'][:1000]
 
 # fit_pred = fit_ata(ts, 4) # ata's method
 
@@ -323,10 +323,12 @@ ts = input_data['Feature']
 # 360.64, 362.35, 362.77, 322.03, 314.66, 312.74, 307.52, 304.87, 301.73, 300.62
 # ]
 
+# 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+#     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+#     0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+
 ts = [
-    0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
-    0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
-    0.0,0.0,0.0,0.0,0.0,0.0,0.0,-11617.0,0.0,
+    -11617.0,0.0,
     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
     0.0,0.0,0.0,0.0,0.0,-11617.0,0.0,0.0,0.0,0.0,
@@ -373,31 +375,31 @@ ts = [
 
 
 
-# # single process
-# fit_pred = _ata(
-#                 input_series = np.asarray(ts), 
-#                 input_series_length = len(ts),
-#                 w = (30,30), 
-#                 h = 40,
-#                 epsilon = 1e-7
-#                 )
+# single process
+fit_pred = _ata(
+                input_series = np.asarray(ts), 
+                input_series_length = len(ts),
+                w = (79,12), 
+                h = 6,
+                epsilon = 1e-7
+                )
         
 
-# yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
-# # yhat = fit_pred['ata_demand_series']
+yhat = np.concatenate([fit_pred['in_sample_forecast'], fit_pred['out_of_sample_forecast']])
+# yhat = fit_pred['ata_demand_series']
 
-# opt_model = fit_pred['model']
-# print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
-
-
-# optimize process
-fit_pred = fit_ata(ts, 6) # ata's method
-
-yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
-
-opt_model = fit_pred['ata_model']
-# print(opt_model.)
+opt_model = fit_pred['model']
 print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+
+
+# # optimize process
+# fit_pred = fit_ata(ts, 6) # ata's method
+
+# yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+
+# opt_model = fit_pred['ata_model']
+# # print(opt_model.)
+# print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
 
 plt.plot(ts)
 plt.plot(yhat)

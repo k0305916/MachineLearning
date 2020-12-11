@@ -86,9 +86,15 @@ def _ata(
         q = w[1]
     # fit model
     cc = []
+    nt = []
     cc.append(input_series[0])
     j = 1
+    k = 1
     for i in range(0,input_series_length):
+        nt.append(k)
+        if input_series[i] == 0:
+            k+=1
+
         a_demand = p / j
         a_interval = q / j
 
@@ -111,6 +117,9 @@ def _ata(
                 xfit[i] = a_interval * (zfit[i] - zfit[i-1]) + (1-a_interval) * xfit[i-1] # interval
                 # xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval
 
+        if(input_series[i] != 0):
+            k = 1
+        
         cc.append(zfit[i] + xfit[i])
         # print(zfit[i] + xfit[i])
         j+=1
@@ -122,7 +131,8 @@ def _ata(
                         'a_interval':           q,
                         'demand_series':        pd.Series(zfit),
                         'interval_series':      pd.Series(xfit),
-                        'demand_process':       pd.Series(cc)
+                        'demand_process':       pd.Series(cc),
+                        'in_sample_nt':         pd.Series(nt),
                     }
     
     # calculate in-sample demand rate
@@ -252,17 +262,26 @@ def _ata_cost(
     # #防止进入负数区间
     if p0[0] < 0 or p0[1] < 0:
         return 3.402823466E+38
-    frc_in = _ata(
+    trainmodel = _ata(
                     input_series = input_series,
                     input_series_length = input_series_length,
                     w=p0,
                     h=0,
                     epsilon = epsilon
-                        )['in_sample_forecast']
+                        )['model']
 
-    # MSE： 在该算法中，optimize时，MSE（RMSE）并不是一个好的选择。-------------------------------------
-    frc_in.pop()
-    E = input_series - frc_in
+    # 以 nt 作为cost function
+    origin_nt = trainmodel['in_sample_nt'].values
+    frc_nt = trainmodel['interval_series'].values
+
+    Ev = origin_nt - frc_nt
+    Ev = Ev[Ev != np.array(None)]
+    Ev = np.mean(Ev ** 2)
+    E = Ev
+
+    # # MSE： 在该算法中，optimize时，MSE（RMSE）并不是一个好的选择。-------------------------------------
+    # frc_in.pop()
+    # E = input_series - frc_in
 
     # # 变形MSE
     # # count = min(input_series_length-1,(int)(p0[0]))
@@ -271,8 +290,8 @@ def _ata_cost(
     # # E = indata - outdata
     
     # standard MSE
-    E = E[E != np.array(None)]
-    E = np.mean(E ** 2)
+    # E = E[E != np.array(None)]
+    # E = np.mean(E ** 2)
 
     # # standard RMSE
     # E = E[E != np.array(None)]
