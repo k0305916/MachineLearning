@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.optimize import minimize
 import scipy.optimize
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def fit_ata(
                     input_endog,
@@ -84,39 +85,91 @@ def _ata(
     else:
         p = w[0]
         q = w[1]
+
+
+    if q > p:
+        print("error")
+
     # fit model
     cc = []
-    cc.append(input_series[0])
+#     cc.append(input_series[0])
     j = 1
-    for i in range(0,input_series_length):
-        a_demand = p / j
-        a_interval = q / j
-
-        # 提升效率的操作方式
-        if i <= p:
-            zfit[i] = input_series[i]
-        else:
-            # zfit[i] = zfit[i-1] + a_demand * (z[i] - zfit[i-1]) # demand
-            zfit[i] = a_demand * input_series[i] + (1-a_demand) * (zfit[i-1] + xfit[i-1])   #demand
-
-
-        # for single exponential smoothing of ata
-        if q != 0:
-            # for holt's linear trend method of ata
-            if i == 0:
-                xfit[i] = 0
-            elif i <= q: 
-                xfit[i] = input_series[i] - input_series[i-1]
+    k = 1
+    
+    xxx = []
+    count = 1
+    for tmp in input_series:
+            xxx.append(count)
+            if tmp != 0:
+                count = 1
             else:
-                xfit[i] = a_interval * (zfit[i] - zfit[i-1]) + (1-a_interval) * xfit[i-1] # interval
-                # xfit[i] = xfit[i-1] + a_interval * (x[i] - xfit[i-1]) # interval
+                count += 1
+    
+    for i in range(len(input_series)):
+        if(input_series[i] == 0):
+            k = k + 1
+#             z1 = z0
+#             n1 = n0
+#         else:
+        if(i <= p):
+            z0 = input_series[i]
+        else:
+            z1 = p/i*input_series[i]+ (1-p/i)*z0
+            z0 = z1
 
-        cc.append(zfit[i] + xfit[i])
-        # print(zfit[i] + xfit[i])
+        if(i <= q):
+            if (i == 0):
+                n0 = 0
+            else:
+#                 n0 = input_series[i] - input_series[i-1]
+                n0 = k
+#                     n0 = xxx[i]
+        else:
+#                 n1 =  q/i*xxx[i] + (1 - q/i)*n0
+            n1 =  q/i*k + (1 - q/i)*n0
+            n0 = n1
+
+        if(input_series[i] != 0):
+            k = 1
+
+        zfit[i] = z0
+        xfit[i] = n0
+    
+    
+#     for i in range(0,input_series_length):
+#         a_demand = p / j
+#         a_interval = q / j
+        
+#         if input_series[i] == 0:
+#             k += 1
+
+# #         if input_series[i] == 0:
+# #             zfit[i] = zfit[i-1]
+# #             xfit[i] = xfit[i-1]
+# #         else:
+#         if i <= p:
+#             zfit[i] = input_series[i]
+#         else:
+#             zfit[i] = a_demand * input_series[i] + (1 - a_demand) * zfit[i-1]
+
+#         if i == 0:
+#             xfit[i] = 0
+#         elif i <= q:
+#             xfit[i] = input_series[i] - input_series[i-1]
+#         else:
+#             xfit[i] = a_interval * k + (1-a_interval) * xfit[i-1]
+
+        if xfit[i] == 0:
+            cc.append(zfit[i])
+        else:
+            cc.append(zfit[i] / (xfit[i]+1e-7))
         j+=1
         
-    # cc = correction_factor * zfit / (xfit + epsilon)
-    
+#         if input_series[i] != 0:
+#             k = 1
+
+    print(("p: {0} q: {1} last interval: {2}").format(p, q, xfit[-1]))
+           
     ata_model = {
                         'a_demand':             p,
                         'a_interval':           q,
@@ -147,12 +200,12 @@ def _ata(
         frc_out = []
         a_demand = p / input_series_length
         a_interval = q / input_series_length
-        zfit_frcout = a_demand * input_series[-1] + (1-a_demand)*(zfit[-1] + xfit[-1])
-        xfit_frcout = a_interval * (zfit_frcout - zfit[-1]) + (1-a_interval)*xfit[-1]
+        zfit_frcout = a_demand * input_series[-1] + (1-a_demand)*zfit[-1]
+        xfit_frcout = a_interval * xxx[-1] + (1-a_interval)*xfit[-1]
 
 
         for i in range(1,h+1):
-            result = zfit_frcout + i * xfit_frcout
+            result = zfit_frcout / xfit_frcout
             frc_out.append(result)
             # f.write(str(zfit_frcout) +'\t' + str(xfit_frcout) + '\t' + str(result) + '\n')
     else:
@@ -180,8 +233,8 @@ def _ata_opt(
     # init_p = np.random.randint(1, input_series_length)
     # init_q = np.random.randint(0, init_p)
     # p0 = np.array([init_p,init_q])
-    # p0 = np.array([1.0,0.0])
-    # pbounds = ((1, input_series_length), (0, input_series_length))
+    p0 = np.array([1.0,0.0])
+    pbounds = ((1, input_series_length), (0, input_series_length))
 
 
     # # p0 = np.array([1])
@@ -191,16 +244,16 @@ def _ata_opt(
     # # # # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
     # # # # 传入梯度下降的公式，则可以降低计算的消耗。。。。
     # # # # 调整步长，来修正梯度下降的效率？
-    # wopt = minimize(
-    #                     fun = _ata_cost, 
-    #                     x0 = p0, 
-    #                     method='L-BFGS-B',
-    #                     bounds=pbounds,
-    #                     args=(input_series, input_series_length, epsilon)
-    #                 )
+    wopt = minimize(
+                        fun = _ata_cost, 
+                        x0 = p0, 
+                        method='L-BFGS-B',
+                        bounds=pbounds,
+                        args=(input_series, input_series_length, epsilon)
+                    )
 
-    # constrained_wopt = wopt.x
-    # fun = wopt.fun
+    constrained_wopt = wopt.x
+    fun = wopt.fun
 
 
     # # p0 = np.array([1])
@@ -216,13 +269,13 @@ def _ata_opt(
     # fun = wopt.fun
 
 
-    pbounds = ((1, input_series_length), (0, input_series_length))
-    wopt = scipy.optimize.brute(_ata_cost,pbounds,
-                                args=(input_series, input_series_length, epsilon))
+    # pbounds = ((1, input_series_length), (0, input_series_length))
+    # wopt = scipy.optimize.brute(_ata_cost,pbounds,
+    #                             args=(input_series, input_series_length, epsilon))
     
-    # constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))
-    constrained_wopt = wopt
-    fun = 0
+    # # constrained_wopt = np.minimum([1], np.maximum([0], wopt.x))
+    # constrained_wopt = wopt
+    # fun = 0
 
     # # 双重退火
     # pbounds = ((1, input_series_length), (0, input_series_length))
@@ -250,19 +303,55 @@ def _ata_cost(
                 epsilon
                 ):
     # #防止进入负数区间
-    if p0[0] < 0 or p0[1] < 0:
+    if p0[0] <= 0 or p0[1] < 0:
         return 3.402823466E+38
-    frc_in = _ata(
+
+    if p0[1] > p0[0]:
+        return 3.402823466E+38
+    
+    output = _ata(
                     input_series = input_series,
                     input_series_length = input_series_length,
                     w=p0,
                     h=0,
                     epsilon = epsilon
-                        )['in_sample_forecast']
+                        )
 
     # MSE： 在该算法中，optimize时，MSE（RMSE）并不是一个好的选择。-------------------------------------
-    frc_in.pop()
-    E = input_series - frc_in
+#     frc_in.pop()
+    frc_in = output['fit_output']
+    
+#     frc_in = output['in_sample_forecast']
+    intv_in = output['model']['interval_series'].values
+
+    
+    xxx = []
+    count = 1
+    for tmp in input_series:
+            xxx.append(count)
+            if tmp != 0:
+                count = 1
+            else:
+                count += 1
+
+#     E = np.array(input_series)/np.array(xxx) - np.array(frc_in)
+#     E = E[E != np.array(None)]
+#     E = np.sqrt(np.mean(E ** 2))
+    
+    Ev = xxx - intv_in
+    Ev = Ev[Ev != np.array(None)]
+    Ev = np.sqrt(np.mean(Ev ** 2))
+# #     print(E, Ev)
+    E = Ev
+    
+#     E = 2/(1000/(E+1.0e-8) + 1/(Ev + 1.0e-8))
+#     print(xxx)
+#     print(frc_in)
+                
+#     E = xxx - frc_in
+#     print('residual: ', end='')
+#     for i in E:
+#         print(i,end=',')
 
     # # 变形MSE
     # # count = min(input_series_length-1,(int)(p0[0]))
@@ -271,8 +360,9 @@ def _ata_cost(
     # # E = indata - outdata
     
     # standard MSE
-    E = E[E != np.array(None)]
-    E = np.mean(E ** 2)
+
+    
+    
 
     # # standard RMSE
     # E = E[E != np.array(None)]
@@ -301,11 +391,11 @@ def _ata_cost(
 # ts = np.insert(a, idxs, val)
 
 
-# Yearly dataset
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
-# ts = input_data['Feature'][:1000]
+# # Yearly dataset
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
+# # ts = input_data['Feature'][:1000]
 
 # fit_pred = fit_ata(ts, 4) # ata's method
 
@@ -313,20 +403,54 @@ ts = input_data['Feature']
 # yhat = fit_pred['ata_demand_series']
 
 # # excel dataset
-# ts = [
-# 362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 360.64, 362.35, 362.77, 361.79, 
-# 361.41, 360.35, 357.75, 356.11, 355.24, 353.58, 347.49, 333.02, 0, 331.26, 322.03, 314.66, 
-# 312.74, 307.52, 304.87, 301.73, 300.62, 303.82, 307.40, 309.85, 311.06, 312.83, 314.97, 318.79, 
-# 320.81, 323.62, 325.66, 331.44, 332.61, 335.44, 336.57, 338.26, 337.20, 338.30, 342.17, 342.40, 
-# 341.63, 344.27, 342.50, 343.39, 343.57, 346.44, 347.07, 347.47, 349.21, 349.56, 352.03, 353.95, 
-# 355.17, 352.91, 356.45, 358.93, 362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 
-# 360.64, 362.35, 362.77, 322.03, 314.66, 312.74, 307.52, 304.87, 301.73, 300.62
-# ]
+def my_data_cont():
+    ts = [
+        362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 360.64, 362.35, 362.77, 361.79, 
+        361.41, 360.35, 357.75, 356.11, 355.24, 353.58, 347.49, 333.02, 333.50, 331.26, 322.03, 314.66, 
+        312.74, 307.52, 304.87, 301.73, 300.62, 303.82, 307.40, 309.85, 311.06, 312.83, 314.97, 318.79, 
+        320.81, 323.62, 325.66, 331.44, 332.61, 335.44, 336.57, 338.26, 337.20, 338.30, 342.17, 342.40, 
+        341.63, 344.27, 342.50, 343.39, 343.57, 346.44, 347.07, 347.47, 349.21, 349.56, 352.03, 353.95, 
+        355.17, 352.91, 356.45, 358.93, 362.35, 361.51, 363.51, 362.56, 361.88, 361.63, 361.35, 362.82, 
+        360.64, 362.35, 362.77, 322.03, 314.66, 312.74, 307.52, 304.87, 301.73, 300.62
+    ]
+    return ts
 
-ts = [
-    0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
-    0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
-    0.0,0.0,0.0,0.0,0.0,0.0,0.0,-11617.0,0.0,
+# 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+#     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+#     0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+
+def ata(x, p, q):
+    fitted = list()
+    cc = 1
+    if(q > p):
+        error('q cannot be larger than p')
+    for i in range(len(x)):
+        if(x[i] == 0):
+            cc = cc + 1
+
+        if(i <= p):
+            z0 = x[i]
+        else:
+            z1 = p/i*x[i]+ (1-p/i)*z0
+            z0 = z1
+
+        if(i <= q):
+            if (i == 0):
+                n0 = 0
+            else:
+                n0 = x[i] - x[i-1]
+        else:
+            n1 =  q/i*cc + (1 - q/i)*n0
+            n0 = n1
+
+        if(x[i] != 0):
+            cc = 1
+        fitted.append(z0)
+    return fitted, z1, n1
+
+def my_data():
+    ts = [
+    -11617.0,0.0,
     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
     0.0,0.0,0.0,0.0,0.0,-11617.0,0.0,0.0,0.0,0.0,
@@ -369,16 +493,86 @@ ts = [
     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
     0.0,-12357.6,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
     0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,-12357.6]
+    
+    return ts
+
+def crost(x, alpha = 0.1):
+    z0 = x[0]
+    q = 1
+    n0 = 1
+    fitted = list()
+    for i in range(len(x)):
+        if x[i] == 0:
+            q = q + 1
+            z1 = z0
+            n1 = n0
+        else:
+            z1 = z0 + alpha*(x[i] - z0)
+            n1 = alpha*q + (1-alpha)*n0
+            z0 = z1
+            n0 = n1
+            q = 1
+        fitted.append(z0)
+    return fitted,z1, n1
+
+def average(x, p):
+    resi = 0
+    k = 1
+    fitted_z = []
+    fitted_n = []
+    for i in range(len(x)):
+        if(x[i] == 0):
+            z1 = z0
+            k = k + 1
+        else:
+            if(i <= p):
+                z0 = x[i]
+                z1 = z0
+            else:
+                z1 = p/i*x[i]+ (1-p/i)*z0
+                z0 = z1
+        resi += (z1 - x[i]*k)**2           
+       
+        fitted_z.append(z0)
+        fitted_n.append(k)
+        if(x[i] != 0):
+            k = 1
+       
+       
+    return (np.sqrt(resi/len(x)), fitted_z, fitted_n)
 
 
+# _dataset = pd.read_csv("data/M4DataSet/Monthly-train.csv")
+# ts = _dataset['V362'].fillna(0).values[:1000]
 
+# z, n = ata(ts, 60, 4)
+# z, n = ata(ts, 300, 280)
+# print(n)
+
+ts = my_data()
+# ts = my_data_cont()
+
+# # Yearly dataset
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
+# # ts = input_data['Feature'][:1000]
+
+E = []
+for i in range(len(ts)):
+    EValue, z, n = average(ts, i)
+    E.append(EValue)
+
+plt.plot(E)
+plt.scatter(E.index(min(E)), min(E))
+print(E.index(min(E)), min(E))
 
 # # single process
 # fit_pred = _ata(
 #                 input_series = np.asarray(ts), 
 #                 input_series_length = len(ts),
-#                 w = (30,30), 
-#                 h = 40,
+#                 w = (30,0), 
+#                 h = 6,
 #                 epsilon = 1e-7
 #                 )
         
@@ -390,17 +584,16 @@ ts = [
 # print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
 
 
-# optimize process
-fit_pred = fit_ata(ts, 6) # ata's method
+# # optimize process
+# fit_pred = fit_ata(ts, 6) # ata's method
 
-yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
+# yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
 
-opt_model = fit_pred['ata_model']
-# print(opt_model.)
-print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+# opt_model = fit_pred['ata_model']
+# print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
 
-plt.plot(ts)
-plt.plot(yhat)
+# plt.plot(ts)
+# plt.plot(yhat)
 
 plt.show()
 print("")
