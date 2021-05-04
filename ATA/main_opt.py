@@ -271,14 +271,23 @@ def calc_opt(p,q):
 # ts = np.insert(a, idxs, val)
 
 
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-# ts = input_data['Feature'][:4000]
-ts = input_data['Feature']
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# # ts = input_data['Feature'][:4000]
+# ts = input_data['Feature']
 
 # demand : 1.0  a_interval: 0.0 rmse: 0.03419066029127796
 
-fit_pred = fit_ata(ts, 4) # ata's method
+ts = np.asarray([362.35, 0.0, 0.0, 0.0, 0.0, 361.63, 0.0, 0.0, 0.0, 0.0, 362.77,
+      0.0, 0.0, 0.0, 0.0, 356.11, 0.0, 0.0, 0.0, 0.0, 0.0, 331.26,
+      0.0, 0.0, 0.0, 0.0, 304.87, 0.0, 0.0, 0.0, 0.0, 0.0, 311.06,
+      0.0, 0.0, 0.0, 0.0, 323.62, 0.0, 0.0, 0.0, 0.0, 336.57, 0.0,
+      0.0, 0.0, 0.0, 342.40, 0.0, 0.0, 0.0, 0.0, 343.57, 0.0, 0.0,
+      0.0, 0.0, 349.56, 0.0, 0.0, 0.0, 0.0, 356.45, 0.0, 0.0, 0.0,
+      0.0, 362.56, 0.0, 0.0, 0.0, 0.0, 360.64, 0.0, 0.0, 0.0, 0.0,
+      312.74, 0.0, 0.0, 0.0, 0.0])
+
+fit_pred = fit_ata(ts, 20) # ata's method
 
 
 yhat = np.concatenate([fit_pred['ata_fittedvalues'], fit_pred['ata_forecast']])
