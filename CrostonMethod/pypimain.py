@@ -15,11 +15,22 @@ import matplotlib.pyplot as plt
 
 # ts = np.insert(a, idxs, val)
 
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
+ts = [362.35, 0.0, 0.0, 0.0, 0.0, 361.63, 0.0, 0.0, 0.0, 0.0, 362.77,
+      0.0, 0.0, 0.0, 0.0, 356.11, 0.0, 0.0, 0.0, 0.0, 0.0, 331.26,
+      0.0, 0.0, 0.0, 0.0, 304.87, 0.0, 0.0, 0.0, 0.0, 0.0, 311.06,
+      0.0, 0.0, 0.0, 0.0, 323.62, 0.0, 0.0, 0.0, 0.0, 336.57, 0.0,
+      0.0, 0.0, 0.0, 342.40, 0.0, 0.0, 0.0, 0.0, 343.57, 0.0, 0.0,
+      0.0, 0.0, 349.56, 0.0, 0.0, 0.0, 0.0, 356.45, 0.0, 0.0, 0.0,
+      0.0, 362.56, 0.0, 0.0, 0.0, 0.0, 360.64, 0.0, 0.0, 0.0, 0.0,
+      312.74, 0.0, 0.0, 0.0, 0.0]
 
-fit_pred = croston.fit_croston(ts, 10, 'original') # croston's method
+tss = [0.0, 312.74, 0.0, 0.0, 0.0, 0.0]
+
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
+
+fit_pred = croston.fit_croston(ts, 6, 'original') # croston's method
 
 # fit_pred = croston.fit_croston(ts, 4, 'sba') # Syntetos-Boylan approximation
 # fit_pred = croston.fit_croston(ts, 10, 'sbj') # Shale-Boylan-Johnston

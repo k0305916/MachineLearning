@@ -179,7 +179,7 @@ def _croston_opt(
                     nop = 1
                 ):
     
-    p0 = np.array([1.0, 1.0] * nop)
+    p0 = np.array([0.0] * nop)
 
     # 通过minimize的方式，获取到一个最优化值。
     # 感觉可以深挖下这个的算法耶。。里面还含有分布函数的选择。
@@ -206,22 +206,23 @@ def _croston_cost(
                     p0,
                     input_series,
                     input_series_length,
+                    test_series,
                     croston_variant,
                     epsilon
                 ):
     
     # cost function for croston and variants
     
-    frc_in = _croston(
+    frc_out = _croston(
                             input_series = input_series,
                             input_series_length = input_series_length,
                             croston_variant = croston_variant,
                             w=p0,
-                            h=0,
+                            h=len(test_series),
                             epsilon = epsilon
-                        )['in_sample_forecast']
+                        )['out_of_sample_forecast']
         
-    E = input_series - frc_in
+    E = test_series - frc_out
     E = E[E != np.array(None)]
     E = np.mean(E ** 2)
 
@@ -238,11 +239,25 @@ def _croston_cost(
 # ts = np.insert(a, idxs, val)
 
 
-input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
-input_data = input_data.fillna(0)
-ts = input_data['Feature']
+# input_data = pd.read_csv("./data/M4DataSet/NewYearly.csv")
+# input_data = input_data.fillna(0)
+# ts = input_data['Feature']
 
-fit_pred = fit_croston(ts, 4, 'original') # croston's method
+# _dataset = pd.read_csv("data/M4DataSet/Monthly-train.csv")
+# ts = _dataset['V510'].fillna(0).values[:500]
+
+ts = [362.35, 0.0, 0.0, 0.0, 0.0, 361.63, 0.0, 0.0, 0.0, 0.0, 362.77,
+      0.0, 0.0, 0.0, 0.0, 356.11, 0.0, 0.0, 0.0, 0.0, 0.0, 331.26,
+      0.0, 0.0, 0.0, 0.0, 304.87, 0.0, 0.0, 0.0, 0.0, 0.0, 311.06,
+      0.0, 0.0, 0.0, 0.0, 323.62, 0.0, 0.0, 0.0, 0.0, 336.57, 0.0,
+      0.0, 0.0, 0.0, 342.40, 0.0, 0.0, 0.0, 0.0, 343.57, 0.0, 0.0,
+      0.0, 0.0, 349.56, 0.0, 0.0, 0.0, 0.0, 356.45, 0.0, 0.0, 0.0,
+      0.0, 362.56, 0.0, 0.0, 0.0, 0.0, 360.64, 0.0, 0.0, 0.0, 0.0,
+      312.74, 0.0, 0.0, 0.0, 0.0]
+
+tss = [0.0, 312.74, 0.0, 0.0, 0.0, 0.0]
+
+fit_pred = fit_croston(np.asarray(ts), len(np.asarray(tss)), 'original') # croston's method
 
 # fit_pred = fit_croston(ts, 4, 'sba') # Syntetos-Boylan approximation
 # fit_pred = fit_croston(ts, 4, 'sbj') # Shale-Boylan-Johnston
@@ -250,10 +265,22 @@ fit_pred = fit_croston(ts, 4, 'original') # croston's method
 
 # yhat = np.concatenate([fit_pred['croston_fittedvalues'], fit_pred['croston_forecast']])
 # yhat = fit_pred['croston_demand_series']
-yhat = fit_pred['croston_fittedvalues']
+# yhat = fit_pred['croston_fittedvalues']
 
 opt_model = fit_pred['croston_model']
 print("opt P: {0}   Q: {1}".format(opt_model["a_demand"],opt_model["a_interval"]))
+
+fit_train = fit_pred["croston_fittedvalues"]
+fit_forcase = fit_pred["croston_forecast"]
+yhat = np.concatenate((fit_train, fit_forcase))
+
+E = tss - fit_forcase
+
+# standard RMSE
+E = E[E != np.array(None)]
+# E = np.sqrt(np.mean(E ** 2))
+E = np.mean(E ** 2)
+print("forecast mse: {0}".format(E))
 
 # print(ts)
 # print(yhat)
