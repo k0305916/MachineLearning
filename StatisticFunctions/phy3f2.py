@@ -26,7 +26,7 @@ def MyVmse(m, n):
     return sum * m * m / n / n
 
 # start = time.time()
-print(1.0 / Vmse(1315, 1913))
+print(1.0 / Vmse(14, 24))
 # print(time.time() - start)
 # start1 = time.time()
 # print(MyVmse(1058, 1913))
